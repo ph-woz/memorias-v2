@@ -1,0 +1,52 @@
+<?php
+
+namespace Database\Factories;
+
+use App\Enums\StatusArtigo;
+use App\Models\Artigo;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
+
+/**
+ * @extends Factory<Artigo>
+ */
+class ArtigoFactory extends Factory
+{
+    protected $model = Artigo::class;
+
+    public function definition(): array
+    {
+        $titulo = fake()->sentence(6);
+
+        return [
+            'usuario_id' => User::factory(),
+            'categoria_id' => null,
+            'titulo' => $titulo,
+            'identificador' => Str::slug($titulo).'-'.fake()->unique()->numerify('###'),
+            'resumo' => fake()->optional()->sentence(12),
+            'conteudo' => fake()->paragraphs(3, true),
+            'status' => StatusArtigo::Rascunho,
+            'publicado_em' => null,
+        ];
+    }
+
+    public function configure(): static
+    {
+        return $this->afterCreating(function (Artigo $artigo): void {
+            if ($artigo->autores()->exists()) {
+                return;
+            }
+
+            $artigo->autores()->attach($artigo->usuario_id);
+        });
+    }
+
+    public function publicado(): static
+    {
+        return $this->state(fn (): array => [
+            'status' => StatusArtigo::Publicado,
+            'publicado_em' => now()->subHour(),
+        ]);
+    }
+}
