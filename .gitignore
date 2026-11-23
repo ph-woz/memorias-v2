@@ -31,3 +31,4 @@ frankenphp
 frankenphp-worker.php
 /data
 config/psysh/
+tmp-git-commit.shn
