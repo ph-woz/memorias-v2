@@ -10,10 +10,14 @@ return new class extends Migration
     {
         Schema::create('categorias', function (Blueprint $table) {
             $table->id();
-            $table->string('nome');
-            $table->string('identificador')->unique();
-            $table->timestamp('criado_em')->nullable();
-            $table->timestamp('atualizado_em')->nullable();
+            $table->string('nome')->unique();
+            $table->string('slug')->unique();
+            $table->string('foto')->nullable();
+            $table->string('seo_titulo')->nullable();
+            $table->string('seo_descricao', 500)->nullable();
+            $table->string('seo_palavras_chave')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
         });
     }
 

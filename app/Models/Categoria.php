@@ -2,12 +2,12 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\HasPortugueseTimestamps;
 use Database\Factories\CategoriaFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
 
 class Categoria extends Model
@@ -15,13 +15,13 @@ class Categoria extends Model
     /** @use HasFactory<CategoriaFactory> */
     use HasFactory;
 
-    use HasPortugueseTimestamps;
+    use SoftDeletes;
 
     protected $table = 'categorias';
 
     protected $fillable = [
         'nome',
-        'identificador',
+        'slug',
         'foto',
         'seo_titulo',
         'seo_descricao',
@@ -47,8 +47,8 @@ class Categoria extends Model
         });
     }
 
-    public function artigos(): HasMany
+    public function artigos(): BelongsToMany
     {
-        return $this->hasMany(Artigo::class, 'categoria_id');
+        return $this->belongsToMany(Artigo::class, 'artigo_categoria', 'categoria_id', 'artigo_id');
     }
 }

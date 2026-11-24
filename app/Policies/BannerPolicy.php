@@ -36,4 +36,9 @@ class BannerPolicy
     {
         return true;
     }
+
+    public function restore(User $usuario, Banner $banner): bool
+    {
+        return true;
+    }
 }

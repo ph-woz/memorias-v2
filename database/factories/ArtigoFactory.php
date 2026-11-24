@@ -20,10 +20,9 @@ class ArtigoFactory extends Factory
         $titulo = fake()->sentence(6);
 
         return [
-            'usuario_id' => User::factory(),
-            'categoria_id' => null,
+            'cadastrante_id' => User::factory(),
             'titulo' => $titulo,
-            'identificador' => Str::slug($titulo).'-'.fake()->unique()->numerify('###'),
+            'slug' => Str::slug($titulo).'-'.fake()->unique()->numerify('###'),
             'resumo' => fake()->optional()->sentence(12),
             'conteudo' => fake()->paragraphs(3, true),
             'status' => StatusArtigo::Rascunho,
@@ -38,7 +37,10 @@ class ArtigoFactory extends Factory
                 return;
             }
 
-            $artigo->autores()->attach($artigo->usuario_id);
+            $artigo->autores()->create([
+                'nome' => $artigo->cadastrante?->nome ?? fake('pt_BR')->name(),
+                'ordem' => 0,
+            ]);
         });
     }
 

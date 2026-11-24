@@ -15,7 +15,11 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             CategoriaSeeder::class,
             PalavraChaveSeeder::class,
+            AreaTematicaSeeder::class,
+            EtiquetaSeeder::class,
             BannerSeeder::class,
+            MenuItemSeeder::class,
+            ArtigoSeeder::class,
         ]);
     }
 }

@@ -22,9 +22,8 @@ return new class extends Migration
             $table->timestamp('ultimo_acesso_em')->nullable();
             $table->rememberToken();
             $table->timestamps();
+            $table->softDeletes();
         });
-
-
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();

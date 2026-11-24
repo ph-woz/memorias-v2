@@ -21,9 +21,8 @@ return new class extends Migration
             $table->string('cta_link')->nullable();
             $table->unsignedInteger('ordem')->default(0)->index();
             $table->boolean('ativo')->default(true)->index();
-            $table->timestamp('criado_em')->nullable();
-            $table->timestamp('atualizado_em')->nullable();
-            $table->timestamp('excluido_em')->nullable()->index();
+            $table->timestamps();
+            $table->softDeletes();
         });
     }
 

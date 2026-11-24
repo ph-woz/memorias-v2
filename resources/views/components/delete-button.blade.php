@@ -19,7 +19,7 @@
         confirmLabel: @js($confirmLabel),
     })"
     {{ $attributes->merge([
-        'class' => 'inline-flex items-center rounded-md p-2 text-red-600 hover:bg-red-50 hover:text-red-500',
+        'class' => 'inline-flex items-center rounded-md p-1 text-red-600 hover:bg-red-50 hover:text-red-500',
     ]) }}
 >
     {{ $slot }}

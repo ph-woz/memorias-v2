@@ -31,4 +31,9 @@ class PalavraChavePolicy
     {
         return true;
     }
+
+    public function restore(User $usuario, PalavraChave $palavraChave): bool
+    {
+        return true;
+    }
 }

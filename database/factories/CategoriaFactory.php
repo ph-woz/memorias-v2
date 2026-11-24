@@ -19,7 +19,7 @@ class CategoriaFactory extends Factory
 
         return [
             'nome' => Str::title($nome),
-            'identificador' => Str::slug($nome),
+            'slug' => Str::slug($nome),
             'foto' => 'https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=800&q=80',
             'seo_titulo' => Str::limit(Str::title($nome).' | Memórias', 70, ''),
             'seo_descricao' => fake()->sentence(12),

@@ -11,9 +11,8 @@ return new class extends Migration
         Schema::create('palavras_chave', function (Blueprint $table) {
             $table->id();
             $table->string('nome');
-            $table->string('identificador')->unique();
-            $table->timestamp('criado_em')->nullable();
-            $table->timestamp('atualizado_em')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
         });
     }
 

@@ -24,9 +24,6 @@ class UpdateUsuarioRequest extends FormRequest
             ]);
         }
 
-        $this->merge([
-            'email_verificado' => $this->boolean('email_verificado'),
-        ]);
     }
 
     /**
@@ -56,7 +53,6 @@ class UpdateUsuarioRequest extends FormRequest
                 Rule::unique(User::class, 'email')->ignore($usuario->id),
             ],
             'password' => ['nullable', 'confirmed', Password::defaults()],
-            'email_verificado' => ['nullable', 'boolean'],
             'status' => ['required', 'integer', Rule::enum(StatusUsuario::class)],
         ];
     }
@@ -71,9 +67,7 @@ class UpdateUsuarioRequest extends FormRequest
             'nickname' => 'nickname',
             'email' => 'e-mail',
             'password' => 'senha',
-            'email_verificado' => 'e-mail verificado',
             'status' => 'status',
         ];
     }
 }
-

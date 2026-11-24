@@ -2,10 +2,8 @@
 
 namespace App\Http\Requests\PalavrasChave;
 
-use App\Models\PalavraChave;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class UpdatePalavraChaveRequest extends FormRequest
 {
@@ -19,18 +17,8 @@ class UpdatePalavraChaveRequest extends FormRequest
      */
     public function rules(): array
     {
-        /** @var PalavraChave $palavraChave */
-        $palavraChave = $this->route('palavraChave');
-
         return [
             'nome' => ['required', 'string', 'max:255'],
-            'identificador' => [
-                'required',
-                'string',
-                'max:255',
-                'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
-                Rule::unique('palavras_chave', 'identificador')->ignore($palavraChave->id),
-            ],
         ];
     }
 
@@ -41,7 +29,6 @@ class UpdatePalavraChaveRequest extends FormRequest
     {
         return [
             'nome' => 'nome',
-            'identificador' => 'slug',
         ];
     }
 }

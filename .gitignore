@@ -32,3 +32,5 @@ frankenphp-worker.php
 /data
 config/psysh/
 tmp-git-commit.shn
+# Windows shell artifact
+nul

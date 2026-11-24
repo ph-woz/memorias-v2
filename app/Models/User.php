@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -18,7 +18,10 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory;
+
+    use Notifiable;
+    use SoftDeletes;
 
     /**
      * @return array<string, mixed>
@@ -43,11 +46,6 @@ class User extends Authenticatable
         $this->forceFill([
             'ultimo_acesso_em' => now(),
         ])->save();
-    }
-
-    public function artigosComoAutor(): BelongsToMany
-    {
-        return $this->belongsToMany(Artigo::class, 'artigo_usuario', 'usuario_id', 'artigo_id');
     }
 
     public function scopeAtivos(Builder $query): Builder

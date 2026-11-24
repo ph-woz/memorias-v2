@@ -20,15 +20,15 @@ class StoreCategoriaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nome' => ['required', 'string', 'max:255'],
-            'identificador' => [
+            'nome' => ['required', 'string', 'max:255', Rule::unique('categorias', 'nome')],
+            'slug' => [
                 'required',
                 'string',
                 'max:255',
                 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
-                Rule::unique('categorias', 'identificador'),
+                Rule::unique('categorias', 'slug'),
             ],
-            'foto' => ['required', 'image', 'max:5120'],
+            'foto' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp,gif', 'max:5120'],
             'seo_titulo' => ['nullable', 'string', 'max:70'],
             'seo_descricao' => ['nullable', 'string', 'max:160'],
             'seo_palavras_chave' => ['nullable', 'string', 'max:255'],
@@ -42,7 +42,7 @@ class StoreCategoriaRequest extends FormRequest
     {
         return [
             'nome' => 'nome',
-            'identificador' => 'slug',
+            'slug' => 'slug',
             'foto' => 'foto',
             'seo_titulo' => 'título SEO',
             'seo_descricao' => 'descrição SEO',

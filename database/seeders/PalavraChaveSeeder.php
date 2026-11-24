@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\PalavraChave;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class PalavraChaveSeeder extends Seeder
 {
@@ -38,33 +37,30 @@ class PalavraChaveSeeder extends Seeder
             'Paz',
             'Fé',
             'Tradição',
-            'Festa',
-            'Aniversário',
-            'Natal',
-            'Ano Novo',
             'Culinária',
             'Receita',
             'Música',
             'Dança',
             'Esporte',
             'Hobby',
-            'Natureza',
-            'Campo',
-            'Praia',
-            'Saudade',
-            'Nostalgia',
-            'Conquista',
-            'Desafio',
-            'Perda',
-            'Luto',
-            'Esperança',
-            'Gratidão',
-            'Humor',
-            'Aventura',
             'Fotografia',
             'Carta',
             'Diário',
-            'Herança',
+            'Aniversário',
+            'Natal',
+            'Ano Novo',
+            'Festa',
+            'Saudade',
+            'Nostalgia',
+            'Luto',
+            'Perda',
+            'Esperança',
+            'Conquista',
+            'Desafio',
+            'Aventura',
+            'Natureza',
+            'Praia',
+            'Campo',
             'Raízes',
             'Comunidade',
             'Vizinhança',
@@ -74,8 +70,7 @@ class PalavraChaveSeeder extends Seeder
         ];
 
         foreach ($nomes as $nome) {
-            PalavraChave::query()->updateOrCreate(
-                ['identificador' => Str::slug($nome)],
+            PalavraChave::query()->firstOrCreate(
                 ['nome' => $nome],
             );
         }

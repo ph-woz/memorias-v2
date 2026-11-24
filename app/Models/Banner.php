@@ -4,13 +4,12 @@ namespace App\Models;
 
 use App\Enums\PosicaoHorizontal;
 use App\Enums\PosicaoVertical;
-use App\Models\Concerns\HasPortugueseSoftDeletes;
-use App\Models\Concerns\HasPortugueseTimestamps;
 use Database\Factories\BannerFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
 
 class Banner extends Model
@@ -18,8 +17,7 @@ class Banner extends Model
     /** @use HasFactory<BannerFactory> */
     use HasFactory;
 
-    use HasPortugueseSoftDeletes;
-    use HasPortugueseTimestamps;
+    use SoftDeletes;
 
     protected $table = 'banners';
 

@@ -5,7 +5,6 @@ namespace App\Http\Requests\PalavrasChave;
 use App\Models\PalavraChave;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StorePalavraChaveRequest extends FormRequest
 {
@@ -21,13 +20,6 @@ class StorePalavraChaveRequest extends FormRequest
     {
         return [
             'nome' => ['required', 'string', 'max:255'],
-            'identificador' => [
-                'required',
-                'string',
-                'max:255',
-                'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
-                Rule::unique('palavras_chave', 'identificador'),
-            ],
         ];
     }
 
@@ -38,7 +30,6 @@ class StorePalavraChaveRequest extends FormRequest
     {
         return [
             'nome' => 'nome',
-            'identificador' => 'slug',
         ];
     }
 }

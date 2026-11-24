@@ -24,11 +24,16 @@ class ArtigoPolicy
 
     public function update(User $usuario, Artigo $artigo): bool
     {
-        return $artigo->usuario_id === $usuario->id || $artigo->temAutor($usuario);
+        return true;
     }
 
     public function delete(User $usuario, Artigo $artigo): bool
     {
-        return $artigo->usuario_id === $usuario->id || $artigo->temAutor($usuario);
+        return true;
+    }
+
+    public function restore(User $usuario, Artigo $artigo): bool
+    {
+        return true;
     }
 }

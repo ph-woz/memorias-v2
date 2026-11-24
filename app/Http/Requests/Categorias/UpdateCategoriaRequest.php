@@ -23,15 +23,15 @@ class UpdateCategoriaRequest extends FormRequest
         $categoria = $this->route('categoria');
 
         return [
-            'nome' => ['required', 'string', 'max:255'],
-            'identificador' => [
+            'nome' => ['required', 'string', 'max:255', Rule::unique('categorias', 'nome')->ignore($categoria->id)],
+            'slug' => [
                 'required',
                 'string',
                 'max:255',
                 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
-                Rule::unique('categorias', 'identificador')->ignore($categoria->id),
+                Rule::unique('categorias', 'slug')->ignore($categoria->id),
             ],
-            'foto' => ['nullable', 'image', 'max:5120'],
+            'foto' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp,gif', 'max:5120'],
             'seo_titulo' => ['nullable', 'string', 'max:70'],
             'seo_descricao' => ['nullable', 'string', 'max:160'],
             'seo_palavras_chave' => ['nullable', 'string', 'max:255'],
@@ -45,7 +45,7 @@ class UpdateCategoriaRequest extends FormRequest
     {
         return [
             'nome' => 'nome',
-            'identificador' => 'slug',
+            'slug' => 'slug',
             'foto' => 'foto',
             'seo_titulo' => 'título SEO',
             'seo_descricao' => 'descrição SEO',

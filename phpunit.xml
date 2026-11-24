@@ -31,5 +31,9 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <env name="AI_DEFAULT_PROVIDER" value="openai"/>
+        <env name="AI_TEXT_MODEL" value="gpt-4o"/>
+        <env name="GEMINI_API_KEY" value=""/>
+        <env name="OPENAI_API_KEY" value="testing"/>
     </php>
 </phpunit>

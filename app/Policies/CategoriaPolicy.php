@@ -31,4 +31,9 @@ class CategoriaPolicy
     {
         return true;
     }
+
+    public function restore(User $usuario, Categoria $categoria): bool
+    {
+        return true;
+    }
 }

@@ -15,11 +15,8 @@ class PalavraChaveFactory extends Factory
 
     public function definition(): array
     {
-        $nome = fake()->unique()->word();
-
         return [
-            'nome' => Str::title($nome),
-            'identificador' => Str::slug($nome),
+            'nome' => Str::title(fake()->unique()->word()),
         ];
     }
 }

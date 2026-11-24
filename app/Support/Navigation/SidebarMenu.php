@@ -34,10 +34,34 @@ class SidebarMenu
                 routePattern: 'palavras_chave.*',
             ),
             new SidebarItem(
+                label: 'Áreas temáticas',
+                route: 'areas_tematicas.index',
+                icon: 'categories',
+                routePattern: 'areas_tematicas.*',
+            ),
+            new SidebarItem(
+                label: 'Etiquetas',
+                route: 'etiquetas.index',
+                icon: 'keywords',
+                routePattern: 'etiquetas.*',
+            ),
+            new SidebarItem(
                 label: 'Banners',
                 route: 'banners.index',
                 icon: 'banners',
                 routePattern: 'banners.*',
+            ),
+            new SidebarItem(
+                label: 'Menu',
+                route: 'menu.index',
+                icon: 'menu',
+                routePattern: 'menu.*',
+            ),
+            new SidebarItem(
+                label: 'Páginas',
+                route: 'paginas.index',
+                icon: 'pages',
+                routePattern: 'paginas.*',
             ),
             new SidebarItem(
                 label: 'Usuários',

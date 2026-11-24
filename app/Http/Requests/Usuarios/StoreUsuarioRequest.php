@@ -24,9 +24,6 @@ class StoreUsuarioRequest extends FormRequest
             ]);
         }
 
-        $this->merge([
-            'email_verificado' => $this->boolean('email_verificado'),
-        ]);
     }
 
     /**
@@ -53,7 +50,6 @@ class StoreUsuarioRequest extends FormRequest
                 Rule::unique(User::class, 'email'),
             ],
             'password' => ['required', 'confirmed', Password::defaults()],
-            'email_verificado' => ['nullable', 'boolean'],
             'status' => ['required', 'integer', Rule::enum(StatusUsuario::class)],
         ];
     }
@@ -68,9 +64,7 @@ class StoreUsuarioRequest extends FormRequest
             'nickname' => 'nickname',
             'email' => 'e-mail',
             'password' => 'senha',
-            'email_verificado' => 'e-mail verificado',
             'status' => 'status',
         ];
     }
 }
-

@@ -15,56 +15,59 @@
     use App\Enums\PosicaoHorizontal;
     use App\Enums\PosicaoVertical;
 
-    $altura = $compact ? 'min-h-[280px] sm:min-h-[340px]' : 'min-h-[420px] sm:min-h-[560px] lg:min-h-[640px]';
-    $horizontal = $posicaoHorizontal instanceof PosicaoHorizontal
-        ? $posicaoHorizontal
-        : PosicaoHorizontal::from($posicaoHorizontal);
-    $vertical = $posicaoVertical instanceof PosicaoVertical
-        ? $posicaoVertical
-        : PosicaoVertical::from($posicaoVertical);
+    $altura = $compact ? 'min-h-[280px] sm:min-h-[340px]' : 'min-h-[100svh]';
     $opacidade = max(0, min(100, (int) $overlayOpacidade)) / 100;
 @endphp
 
-<section
-    {{ $attributes->merge(['class' => "relative overflow-hidden {$altura} bg-stone-900"]) }}
->
+<section {{ $attributes->merge(['class' => "relative overflow-hidden {$altura} bg-ink"]) }}>
     @if ($imagemUrl)
         <img
             src="{{ $imagemUrl }}"
             alt="{{ $titulo }}"
-            class="absolute inset-0 h-full w-full object-cover"
+            class="banner-media absolute inset-0 h-full w-full scale-105 object-cover"
         >
     @endif
+
+    <div
+        class="absolute inset-0"
+        style="background: linear-gradient(180deg, rgba(7,21,18,0.45) 0%, rgba(7,21,18,0.2) 35%, rgba(7,21,18,0.75) 100%);"
+    ></div>
 
     @if ($opacidade > 0)
         <div
             class="absolute inset-0"
-            style="background-color: {{ $overlayCor }}; opacity: {{ $opacidade }};"
+            style="background-color: {{ $overlayCor }}; opacity: {{ $opacidade * 0.35 }};"
         ></div>
     @endif
 
-    <div class="relative z-10 flex h-full w-full {{ $vertical->classeItems() }} {{ $horizontal->classeJustify() }}">
-        <div class="w-full max-w-3xl px-6 py-10 sm:px-10 sm:py-14 lg:px-16 {{ $horizontal->classeTexto() }}">
-            <div class="text-white">
+    {{-- Composição hero: marca + 1 headline + 1 frase + CTA — sempre ancorada no rodapé da viewport --}}
+    <div class="relative z-10 flex h-full min-h-[inherit] w-full items-end">
+        <div class="w-full px-5 pb-28 pt-32 sm:px-8 sm:pb-32 lg:px-10">
+            <div class="mx-auto max-w-site text-white">
+                <p class="font-display text-[clamp(3rem,8vw,6.5rem)] font-semibold leading-[0.95] tracking-tight">
+                    Memórias
+                </p>
+
                 @if ($titulo !== '')
-                    <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl lg:text-5xl">
+                    <h2 class="mt-6 max-w-2xl font-display text-2xl font-medium leading-snug text-white/95 sm:text-3xl lg:text-4xl">
                         {{ $titulo }}
                     </h2>
                 @endif
 
                 @if ($slogan !== '')
-                    <p class="mt-3 max-w-2xl text-base text-white/85 sm:text-lg {{ $horizontal === PosicaoHorizontal::Centro ? 'mx-auto' : ($horizontal === PosicaoHorizontal::Direita ? 'ml-auto' : '') }}">
+                    <p class="mt-4 max-w-lg text-base leading-relaxed text-white/70 sm:text-lg">
                         {{ $slogan }}
                     </p>
                 @endif
 
                 @if ($ctaTexto !== '' && $ctaLink !== '')
-                    <div class="mt-6">
+                    <div class="mt-8">
                         <a
                             href="{{ $ctaLink }}"
-                            class="inline-flex items-center rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-stone-900 shadow-sm transition hover:bg-stone-100"
+                            class="inline-flex items-center gap-3 bg-white px-6 py-3.5 text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-ink transition hover:bg-accent-bright"
                         >
                             {{ $ctaTexto }}
+                            <span aria-hidden="true">→</span>
                         </a>
                     </div>
                 @endif

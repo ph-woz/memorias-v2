@@ -32,7 +32,6 @@ class UsuarioCrudTest extends TestCase
             'email' => 'maria@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
-            'email_verificado' => true,
             'status' => StatusUsuario::Ativo->value,
         ]);
 
@@ -46,7 +45,6 @@ class UsuarioCrudTest extends TestCase
             'email' => 'maria@example.com',
             'status' => StatusUsuario::Ativo->value,
         ]);
-        $this->assertNotNull($usuario->email_verified_at);
     }
 
     public function test_usuario_pode_atualizar_outro_usuario(): void
@@ -62,7 +60,6 @@ class UsuarioCrudTest extends TestCase
                 'nome' => 'Novo Nome',
                 'nickname' => 'novonome',
                 'email' => $usuario->email,
-                'email_verificado' => true,
                 'status' => StatusUsuario::Desativado->value,
             ])
             ->assertRedirect(route('usuarios.edit', $usuario));
@@ -103,7 +100,7 @@ class UsuarioCrudTest extends TestCase
             ->delete(route('usuarios.destroy', $usuario))
             ->assertRedirect(route('usuarios.index'));
 
-        $this->assertDatabaseMissing('users', ['id' => $usuario->id]);
+        $this->assertSoftDeleted($usuario);
     }
 
     public function test_usuario_nao_pode_excluir_a_si_mesmo(): void
@@ -119,9 +116,17 @@ class UsuarioCrudTest extends TestCase
 
     public function test_usuario_pode_buscar_usuarios(): void
     {
-        $admin = User::factory()->create(['nome' => 'Admin']);
-        User::factory()->create(['nome' => 'Ana Costa', 'nickname' => 'anacosta']);
-        User::factory()->create(['nome' => 'Bruno Lima', 'nickname' => 'brunolima']);
+        $admin = User::factory()->create(['nome' => 'Admin', 'email' => 'admin-busca@example.com']);
+        User::factory()->create([
+            'nome' => 'Ana Costa',
+            'nickname' => 'anacosta',
+            'email' => 'ana.costa@example.com',
+        ]);
+        User::factory()->create([
+            'nome' => 'Bruno Lima',
+            'nickname' => 'brunolima',
+            'email' => 'bruno.lima@example.com',
+        ]);
 
         $this->actingAs($admin)
             ->get(route('usuarios.index', ['q' => 'Ana']))

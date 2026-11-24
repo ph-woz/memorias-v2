@@ -30,4 +30,9 @@ class UserPolicy
     {
         return $usuario->id !== $alvo->id;
     }
+
+    public function restore(User $usuario, User $alvo): bool
+    {
+        return true;
+    }
 }

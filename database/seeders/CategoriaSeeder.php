@@ -50,7 +50,7 @@ class CategoriaSeeder extends Seeder
 
         foreach ($categorias as $categoria) {
             Categoria::query()->updateOrCreate(
-                ['identificador' => Str::slug($categoria['nome'])],
+                ['slug' => Str::slug($categoria['nome'])],
                 $categoria,
             );
         }

@@ -11,7 +11,7 @@ class UniqueSlugGenerator
     /**
      * @param  class-string<Model>  $modelClass
      */
-    public function generate(string $modelClass, string $value, ?int $ignoreId = null, string $column = 'identificador'): string
+    public function generate(string $modelClass, string $value, ?int $ignoreId = null, string $column = 'slug'): string
     {
         $base = Str::slug($value);
         $base = $base !== '' ? $base : 'item';
