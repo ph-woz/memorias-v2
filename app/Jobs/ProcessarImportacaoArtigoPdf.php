@@ -130,22 +130,23 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
         EnriquecerHtmlLiteralDoPdf $enriquecerHtml,
     ): array {
         $conteudoBase = (string) ($extracao['conteudo_html'] ?? '');
+        $htmlLocal = $enriquecerHtml->polir($conteudoBase, $imagens);
+        $htmlFinal = $htmlLocal;
 
         if ($provider === 'gemini') {
             try {
-                $rico = $formatarRico->formatar(
+                $rico = $formatarRico->formatarComFallback(
                     $this->importacao->pdf_path,
                     $textoPdf,
                     $modelGemini,
                     $imagens,
                 );
 
-                if (trim(strip_tags($rico['conteudo_html'])) !== '') {
-                    $htmlRico = $enriquecerHtml->repartirParagrafosLongos($rico['conteudo_html']);
-                    $htmlRico = $enriquecerHtml->injetarImagensSeAusentes($htmlRico, $imagens);
-                    $extracao['conteudo_html'] = $htmlRico;
+                $htmlGemini = trim((string) ($rico['conteudo_html'] ?? ''));
 
-                    // Resumo no site ainda é texto; preserva literal sem tags.
+                if ($htmlGemini !== '' && $this->htmlRicoPreferivelAoLocal($htmlGemini, $htmlLocal)) {
+                    $htmlFinal = $enriquecerHtml->polir($htmlGemini, $imagens);
+
                     if (filled($rico['resumo_html'])) {
                         $resumoTexto = trim(html_entity_decode(strip_tags($rico['resumo_html']), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
 
@@ -153,20 +154,53 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
                             $extracao['resumo'] = $resumoTexto;
                         }
                     }
-
-                    return $extracao;
                 }
             } catch (Throwable $exception) {
-                Log::warning('Formatação rica via Gemini falhou; aplicando enriquecimento local do PDF.', [
+                Log::warning('Formatação rica via Gemini falhou; mantendo tipografia local do PDF.', [
                     'importacao_id' => $this->importacao->id,
                     'exception' => $exception->getMessage(),
                 ]);
             }
         }
 
-        $extracao['conteudo_html'] = $enriquecerHtml->enriquecer($conteudoBase, $imagens);
+        $extracao['conteudo_html'] = $htmlFinal;
 
         return $extracao;
+    }
+
+    private function htmlRicoPreferivelAoLocal(string $htmlGemini, string $htmlLocal): bool
+    {
+        $textoGemini = trim(html_entity_decode(strip_tags($htmlGemini), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        $textoLocal = trim(html_entity_decode(strip_tags($htmlLocal), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+
+        if ($textoGemini === '' || mb_strlen($textoGemini) < 400) {
+            return false;
+        }
+
+        // Descarta respostas que claramente misturam abstract/cabeçalho.
+        if (preg_match('/\b(key words?|doi:|corresponding author)\b/iu', $textoGemini) === 1) {
+            return false;
+        }
+
+        // Exige que o HTML da IA comece no mesmo trecho literal do corpo local.
+        $localNorm = trim(preg_replace('/\s+/u', ' ', $textoLocal) ?? $textoLocal);
+        $geminiNorm = trim(preg_replace('/\s+/u', ' ', $textoGemini) ?? $textoGemini);
+        $inicioGemini = mb_substr($geminiNorm, 0, 48);
+        $posInicio = $inicioGemini !== '' ? mb_stripos($localNorm, $inicioGemini) : false;
+
+        if ($posInicio === false || $posInicio > 120) {
+            return false;
+        }
+
+        $score = static function (string $html): int {
+            return preg_match_all('/<em\b/i', $html)
+                + preg_match_all('/<strong\b/i', $html)
+                + preg_match_all('/<sup\b/i', $html)
+                + preg_match_all('/<img\b/i', $html)
+                + (int) min(30, preg_match_all('/<p\b/i', $html));
+        };
+
+        return $score($htmlGemini) >= max(12, (int) floor($score($htmlLocal) * 0.8));
     }
 
     /**

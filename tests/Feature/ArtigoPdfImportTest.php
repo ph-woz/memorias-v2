@@ -83,7 +83,7 @@ Key words: American Trypanosomiasis - vectors - Triatominae subfamily
 doi: 10.1590/0074-02760210015
 + Corresponding author: jcosta@ioc.fiocruz.br
 Accepted 04 May 2021
-Despite the great achievements in controlling Chagas disease, also known as American Trypanosomiasis, major problems remain.
+Despite the great achievements in controlling Chagas disease, also known as American Trypanosomiasis, major problems remain. (2) Vectors such as Triatoma infestans and Rhodnius prolixus continue to challenge control programs.
 TXT.str_repeat(' Continuacao fiel do texto do autor.', 25)."\nREFERENCES\n1. Lent H, Wygodzinsky P. Revision. 1979.";
 
         $this->mock(ExtrairTextoPdf::class, function ($mock) use ($textoPdf): void {
@@ -97,7 +97,7 @@ TXT.str_repeat(' Continuacao fiel do texto do autor.', 25)."\nREFERENCES\n1. Len
         config(['ai.default' => 'gemini']);
 
         $this->mock(FormatarConteudoRicoComGemini::class, function ($mock): void {
-            $mock->shouldReceive('formatar')->once()->andThrow(new \RuntimeException('Gemini tipografia 503'));
+            $mock->shouldReceive('formatarComFallback')->once()->andThrow(new \RuntimeException('Gemini tipografia 503'));
         });
 
         $this->processarImportacao($importacao);
@@ -111,6 +111,8 @@ TXT.str_repeat(' Continuacao fiel do texto do autor.', 25)."\nREFERENCES\n1. Len
         $this->assertStringContainsString('Despite the great achievements', $artigo->conteudo);
         $this->assertStringContainsString('Jane Costa', $artigo->autores()->pluck('nome')->implode(', '));
         $this->assertGreaterThan(1, substr_count($artigo->conteudo, '<p'));
+        $this->assertStringContainsString('<em>Triatoma infestans</em>', $artigo->conteudo);
+        $this->assertStringContainsString('<sup>', $artigo->conteudo);
     }
 
     public function test_job_cria_rascunho_com_conteudo_literal_do_pdf(): void
@@ -230,7 +232,14 @@ TXT.str_repeat(' Continuacao fiel do texto do autor.', 25)."\nREFERENCES\n1. Len
     private function processarImportacao(ArtigoImportacao $importacao): void
     {
         $imagens = Mockery::mock(ExtrairImagensDoPdf::class);
-        $imagens->shouldReceive('deCaminhoPublico')->andReturn([]);
+        $imagens->shouldReceive('deCaminhoPublico')->andReturn([
+            [
+                'path' => 'artigos/conteudo/fig-1.jpg',
+                'url' => '/storage/artigos/conteudo/fig-1.jpg',
+                'alt' => 'fig-1',
+                'bytes' => 12000,
+            ],
+        ]);
 
         (new ProcessarImportacaoArtigoPdf($importacao))->handle(
             app(CriarArtigoAPartirDaExtracaoPdfAction::class),

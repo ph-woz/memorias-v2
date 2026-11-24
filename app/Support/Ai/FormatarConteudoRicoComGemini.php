@@ -67,6 +67,7 @@ class FormatarConteudoRicoComGemini
                             'responseMimeType' => 'application/json',
                             'responseSchema' => $this->schema(),
                             'temperature' => 0,
+                            'maxOutputTokens' => 65536,
                         ],
                     ]);
 
@@ -78,7 +79,7 @@ class FormatarConteudoRicoComGemini
 
                 return $response;
             },
-            sleepMilliseconds: fn (int $attempt): int => min(20000, 2500 * $attempt),
+            sleepMilliseconds: fn (int $attempt): int => min(25000, 3000 * $attempt),
         );
 
         if (! $response->successful()) {
@@ -100,6 +101,43 @@ class FormatarConteudoRicoComGemini
                 ? $this->sanitizarHtml((string) $dados['resumo_html'])
                 : null,
         ];
+    }
+
+    /**
+     * Tenta o modelo configurado e, em 503/429, modelos alternativos.
+     *
+     * @param  list<array{path: string, url: string, alt?: string}>  $imagens
+     * @return array{conteudo_html: string, resumo_html: ?string}
+     */
+    public function formatarComFallback(
+        string $caminhoPdfPublico,
+        string $textoPdf,
+        string $model,
+        array $imagens = [],
+    ): array {
+        $candidatos = array_values(array_unique(array_filter([
+            $model,
+            'gemini-2.5-flash',
+            'gemini-2.0-flash',
+            'gemini-3.5-flash-lite',
+        ])));
+
+        $ultimo = null;
+
+        foreach ($candidatos as $candidato) {
+            try {
+                return $this->formatar($caminhoPdfPublico, $textoPdf, $candidato, $imagens);
+            } catch (RuntimeException $exception) {
+                $ultimo = $exception;
+
+                if (! str_contains($exception->getMessage(), 'HTTP 503')
+                    && ! str_contains($exception->getMessage(), 'HTTP 429')) {
+                    throw $exception;
+                }
+            }
+        }
+
+        throw $ultimo ?? new RuntimeException('A IA não devolveu HTML rico do PDF.');
     }
 
     /**

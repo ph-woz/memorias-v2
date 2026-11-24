@@ -34,7 +34,13 @@ class MontarArtigoLiteralDoPdf
         $posCorpo = $inicioCorpo !== '' ? $this->encontrarPosicao($textoPdf, $inicioCorpo) : null;
         $posRefs = $inicioRefs !== '' ? $this->encontrarPosicao($textoPdf, $inicioRefs) : null;
 
-        if ($posCorpo === null) {
+        // Layout Memórias: o corpo editorial começa SEMPRE após "Accepted …".
+        // A IA costuma apontar para um trecho no meio do artigo.
+        $posAccepted = $this->posicaoAposAccepted($textoPdf);
+
+        if ($posAccepted !== null) {
+            $posCorpo = $posAccepted;
+        } elseif ($posCorpo === null) {
             $posCorpo = $this->inferirInicioCorpo($textoPdf, $metadados);
         }
 
@@ -58,7 +64,8 @@ class MontarArtigoLiteralDoPdf
             ? mb_substr($textoPdf, $posRefs)
             : '';
 
-        $metadados['conteudo_html'] = $this->textoParaHtmlLiteral(trim($trechoCorpo));
+        $trechoCorpo = $this->removerCabecalhosDePagina(trim($trechoCorpo));
+        $metadados['conteudo_html'] = $this->textoParaHtmlLiteral($trechoCorpo);
         $metadados['referencias'] = $this->referenciasLiterais(trim($trechoRefs));
 
         if (trim(strip_tags($metadados['conteudo_html'])) === '') {
@@ -269,13 +276,45 @@ class MontarArtigoLiteralDoPdf
      */
     private function desifenizarTipografico(string $texto): string
     {
-        // Sílabas partidas: "Cha-\ngas" → "Chagas".
-        $texto = preg_replace('/(\p{L})-\R(\p{Ll})/u', '$1$2', $texto) ?? $texto;
-        $texto = preg_replace('/(\p{L})-\s+(\p{Ll})/u', '$1$2', $texto) ?? $texto;
+        // Soft hyphen e hifenização tipográfica de PDF.
+        $texto = str_replace(["\u{00AD}", "\xC2\xAD"], '', $texto);
+        // Sílabas partidas: "Cha-\ngas" / "Cha- gas" → "Chagas".
+        $texto = preg_replace('/(\p{L})[\-\x{2010}\x{2011}]\R(\p{Ll})/u', '$1$2', $texto) ?? $texto;
+        $texto = preg_replace('/(\p{L})[\-\x{2010}\x{2011}]\s+(\p{Ll})/u', '$1$2', $texto) ?? $texto;
         // Nomes hifenizados partidos: "Parra-\nHenao" → "Parra-Henao".
-        $texto = preg_replace('/(\p{L})-\R(\p{Lu})/u', '$1-$2', $texto) ?? $texto;
+        $texto = preg_replace('/(\p{L})[\-\x{2010}\x{2011}]\R(\p{Lu})/u', '$1-$2', $texto) ?? $texto;
 
-        return preg_replace('/(\p{L})-\s+(\p{Lu})/u', '$1-$2', $texto) ?? $texto;
+        return preg_replace('/(\p{L})[\-\x{2010}\x{2011}]\s+(\p{Lu})/u', '$1-$2', $texto) ?? $texto;
+    }
+
+    private function posicaoAposAccepted(string $textoPdf): ?int
+    {
+        if (preg_match('/Accepted\s+\d{1,2}\s+\w+\s+\d{4}\s+/iu', $textoPdf, $m, PREG_OFFSET_CAPTURE) !== 1) {
+            return null;
+        }
+
+        $fimAccepted = (int) $m[0][1] + strlen($m[0][0]);
+
+        return $this->offsetBytesParaMb($textoPdf, $fimAccepted);
+    }
+
+    private function removerCabecalhosDePagina(string $texto): string
+    {
+        $texto = preg_replace(
+            '/\bMem Inst Oswaldo Cruz,\s*Rio de Janeiro,\s*Vol\.\s*\d+,\s*\d{4}\s+\d+\|\d+\b/iu',
+            ' ',
+            $texto,
+        ) ?? $texto;
+
+        $texto = preg_replace(
+            '/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+et al\.\s+\d+\|\d+\b/u',
+            ' ',
+            $texto,
+        ) ?? $texto;
+
+        $texto = preg_replace('/\bspe-\s*Mem Inst\b/iu', 'species. ', $texto) ?? $texto;
+
+        return trim(preg_replace('/[ ]{2,}/u', ' ', $texto) ?? $texto);
     }
 
     /**
@@ -283,11 +322,10 @@ class MontarArtigoLiteralDoPdf
      */
     private function inferirInicioCorpo(string $textoPdf, array $metadados): ?int
     {
-        // Layout Memórias: corpo começa após "Accepted DD Month YYYY".
-        if (preg_match('/Accepted\s+\d{1,2}\s+\w+\s+\d{4}\s+/iu', $textoPdf, $m, PREG_OFFSET_CAPTURE) === 1) {
-            $fimAccepted = (int) $m[0][1] + strlen($m[0][0]);
+        $posAccepted = $this->posicaoAposAccepted($textoPdf);
 
-            return $this->offsetBytesParaMb($textoPdf, $fimAccepted);
+        if ($posAccepted !== null) {
+            return $posAccepted;
         }
 
         $padroes = [
@@ -364,6 +402,7 @@ class MontarArtigoLiteralDoPdf
         }
 
         $texto = $this->desifenizarTipografico($texto);
+        $texto = $this->promoverTitulosDeLinha($texto);
         $blocos = preg_split("/\n{2,}/u", $texto) ?: [$texto];
 
         // PDFs científicos costumam ter só quebra simples de linha: reparte por frases.
@@ -390,10 +429,98 @@ class MontarArtigoLiteralDoPdf
                 continue;
             }
 
+            if ($this->pareceTituloDeSecaoLinha($bloco)) {
+                $html[] = '<h2><strong>'.e($bloco).'</strong></h2>';
+
+                continue;
+            }
+
             $html[] = '<p>'.e($bloco).'</p>';
         }
 
         return $html !== [] ? implode('', $html) : '<p>'.e($this->desifenizarTipografico($texto)).'</p>';
+    }
+
+    /**
+     * Isola linhas curtas de título (ex.: "Target species") antes de colapsar \n → espaço.
+     * Só promove quando a linha anterior fecha frase e a seguinte é prosa longa.
+     */
+    private function promoverTitulosDeLinha(string $texto): string
+    {
+        $linhas = preg_split("/\n/u", $texto) ?: [$texto];
+        $total = count($linhas);
+        $saida = [];
+
+        for ($i = 0; $i < $total; $i++) {
+            $trim = trim($linhas[$i]);
+            $anterior = $i > 0 ? trim($linhas[$i - 1]) : '';
+            $seguinte = $i + 1 < $total ? trim($linhas[$i + 1]) : '';
+
+            $anteriorFecha = $anterior === ''
+                || preg_match('/[.!?]$/u', $anterior) === 1
+                || preg_match('/\.\s*\(\d/u', $anterior) === 1
+                || preg_match('/\)$/u', $anterior) === 1;
+
+            $seguinteProsa = $seguinte !== ''
+                && mb_strlen($seguinte) >= 35
+                && preg_match('/^[A-ZÀ-Ý]/u', $seguinte) === 1;
+
+            if ($anteriorFecha && $seguinteProsa && $this->pareceTituloDeSecaoLinha($trim)) {
+                $saida[] = '';
+                $saida[] = $trim;
+                $saida[] = '';
+
+                continue;
+            }
+
+            $saida[] = $linhas[$i];
+        }
+
+        return implode("\n", $saida);
+    }
+
+    private function pareceTituloDeSecaoLinha(string $linha): bool
+    {
+        if ($linha === '' || mb_strlen($linha) < 5 || mb_strlen($linha) > 90) {
+            return false;
+        }
+
+        if (preg_match('/[.;:!?]/u', $linha) === 1 || substr_count($linha, ',') > 0) {
+            return false;
+        }
+
+        if (preg_match('/^(\d+[\.\)]|\(|\[\d|doi:|https?:|Fig\.|Table\b)/iu', $linha) === 1) {
+            return false;
+        }
+
+        // Binômio científico na linha → não é título de seção.
+        if (preg_match('/\b[A-Z][a-z]{3,}\s+[a-z]{3,}\b/u', $linha) === 1) {
+            return false;
+        }
+
+        if (preg_match('/^(ACKNOWLEDGEMENTS|AUTHORS(?:[’\'] CONTRIBUTION)?|REFERENCES|INTRODUCTION|METHODS|RESULTS|DISCUSSION|CONCLUSIONS?|In conclusion)\b/iu', $linha) === 1) {
+            return true;
+        }
+
+        if (preg_match('/\b(have|has|had|been|being|was|were|are|is|can|will|would|could|should|their|there|these|those|which|while|where|when|what|as|despite|more|some|most|into|from|with|that|this|also|only|even)\b/i', $linha) === 1) {
+            return false;
+        }
+
+        $palavras = preg_split('/\s+/u', $linha) ?: [];
+
+        if (count($palavras) < 2 || count($palavras) > 10) {
+            return false;
+        }
+
+        $stop = 0;
+
+        foreach ($palavras as $palavra) {
+            if (preg_match('/^(the|and|of|in|to|for|on|by|or|until|after|before|over)$/i', $palavra) === 1) {
+                $stop++;
+            }
+        }
+
+        return preg_match('/^[A-ZÀ-Ý]/u', $linha) === 1 && $stop <= 2;
     }
 
     /**
