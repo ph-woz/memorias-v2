@@ -151,12 +151,16 @@ document.addEventListener('alpine:init', () => {
         backupFotoFiles: null,
         nomeArquivoCrop: estadoInicial.nomeArquivoCrop ?? 'foto.webp',
 
-        get estiloCropImg() {
+        // Método (não getter): ao espalhar fotoCropFormulario com `...`, getters
+        // viram valor estático e o preview fica 0×0 / sem reposicionar.
+        estiloCropImg() {
             const escala = this.baseScale * this.zoom;
+            const largura = this.imagemNaturalLargura * escala;
+            const altura = this.imagemNaturalAltura * escala;
 
             return {
-                width: `${this.imagemNaturalLargura * escala}px`,
-                height: `${this.imagemNaturalAltura * escala}px`,
+                width: `${largura || 0}px`,
+                height: `${altura || 0}px`,
                 transform: `translate(${this.offsetX}px, ${this.offsetY}px)`,
             };
         },
@@ -176,15 +180,28 @@ document.addEventListener('alpine:init', () => {
                 URL.revokeObjectURL(this.cropSrc);
             }
 
-            this.cropSrc = URL.createObjectURL(arquivo);
+            this.imagemNaturalLargura = 0;
+            this.imagemNaturalAltura = 0;
+            this.baseScale = 1;
+            this.offsetX = 0;
+            this.offsetY = 0;
             this.zoom = 1;
+            this.cropSrc = URL.createObjectURL(arquivo);
             this.cropAberto = true;
+
+            this.$nextTick(() => {
+                const imagem = this.$refs.cropImagem;
+
+                if (imagem?.complete && imagem.naturalWidth > 0) {
+                    this.ajustarCrop();
+                }
+            });
         },
 
         ajustarCrop() {
             const imagem = this.$refs.cropImagem;
 
-            if (! imagem) {
+            if (! imagem || ! imagem.naturalWidth || ! imagem.naturalHeight) {
                 return;
             }
 
@@ -315,7 +332,7 @@ document.addEventListener('alpine:init', () => {
 
                 this.fotoUrl = URL.createObjectURL(arquivo);
                 this.backupFotoFiles = this.$refs.fotoInput.files;
-                this.fecharCrop(false);
+                this.fecharCrop();
             } catch (error) {
                 console.error(error);
                 this.processandoCrop = false;
@@ -332,6 +349,12 @@ document.addEventListener('alpine:init', () => {
             }
 
             this.cropSrc = '';
+            this.imagemNaturalLargura = 0;
+            this.imagemNaturalAltura = 0;
+            this.baseScale = 1;
+            this.offsetX = 0;
+            this.offsetY = 0;
+            this.zoom = 1;
         },
     });
 
@@ -2088,24 +2111,15 @@ document.addEventListener('alpine:init', () => {
         },
     }));
 
-    Alpine.data('artigoReferenciasPainel', (referencias = []) => ({
+    // Store global: o HTML importado do artigo pode quebrar o DOM e
+    // expulsar o painel do escopo x-data local — o store sobrevive a isso.
+    Alpine.store('artigoReferencias', {
         aberto: false,
         ativos: [],
-        referencias: Array.isArray(referencias) ? referencias : [],
+        referencias: [],
 
-        tratarCliqueCitacao(event) {
-            const alvo = event.target.closest('.citacao-ref');
-
-            if (! alvo) {
-                return;
-            }
-
-            event.preventDefault();
-            this.abrir(alvo.getAttribute('data-refs') || '');
-            document.querySelectorAll('.citacao-ref.is-active').forEach((el) => {
-                el.classList.remove('is-active');
-            });
-            alvo.classList.add('is-active');
+        configurar(referencias = []) {
+            this.referencias = Array.isArray(referencias) ? referencias : [];
         },
 
         abrir(refsCsv) {
@@ -2116,16 +2130,7 @@ document.addEventListener('alpine:init', () => {
 
             this.ativos = [...new Set(numeros)];
             this.aberto = true;
-
-            this.$nextTick(() => {
-                const primeiro = this.ativos[0];
-                if (! primeiro) {
-                    return;
-                }
-
-                const item = this.$refs.listaPainel?.querySelector(`#painel-ref-${primeiro}`);
-                item?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-            });
+            this.rolarAteAtivo();
         },
 
         fechar() {
@@ -2135,7 +2140,232 @@ document.addEventListener('alpine:init', () => {
                 el.classList.remove('is-active');
             });
         },
-    }));
+
+        marcarCitacaoAtiva(alvo) {
+            document.querySelectorAll('.citacao-ref.is-active').forEach((el) => {
+                el.classList.remove('is-active');
+            });
+            alvo?.classList.add('is-active');
+        },
+
+        estaAtivo(numero) {
+            return this.ativos.includes(Number(numero));
+        },
+
+        rolarAteAtivo(tentativa = 0) {
+            const primeiro = this.ativos[0];
+
+            if (! primeiro || ! this.aberto) {
+                return;
+            }
+
+            const item = document.getElementById(`painel-ref-${primeiro}`);
+            const lista = document.getElementById('painel-referencias-lista');
+
+            // x-show / transição: o item só tem layout depois do painel aparecer.
+            if (! item || ! lista || lista.clientHeight === 0) {
+                if (tentativa < 30) {
+                    window.setTimeout(() => this.rolarAteAtivo(tentativa + 1), 50);
+                }
+
+                return;
+            }
+
+            const destino = item.getBoundingClientRect().top
+                - lista.getBoundingClientRect().top
+                + lista.scrollTop
+                - 12;
+
+            lista.scrollTo({
+                top: Math.max(0, destino),
+                behavior: tentativa <= 1 ? 'auto' : 'smooth',
+            });
+        },
+    });
+
+    document.addEventListener('click', (event) => {
+        const alvo = event.target.closest('.citacao-ref');
+
+        if (! alvo) {
+            return;
+        }
+
+        const store = Alpine.store('artigoReferencias');
+
+        if (! store.referencias.length) {
+            return;
+        }
+
+        event.preventDefault();
+        store.marcarCitacaoAtiva(alvo);
+        store.abrir(alvo.getAttribute('data-refs') || '');
+    });
+
+    Alpine.data('editorRicoCampo', (estadoInicial = {}) => {
+        /** @type {import('@tiptap/core').Editor | null} */
+        let instancia = null;
+
+        return {
+            html: String(estadoInicial.html ?? ''),
+            campo: String(estadoInicial.campo ?? 'campo'),
+            placeholder: String(estadoInicial.placeholder ?? 'Escreva aqui…'),
+            minHeight: String(estadoInicial.minHeight ?? '10rem'),
+            tick: 0,
+
+            observadorVisibilidade: null,
+
+            init() {
+                this.$nextTick(() => {
+                    requestAnimationFrame(() => this.garantirSeVisivel());
+                });
+
+                if (typeof IntersectionObserver === 'function') {
+                    this.observadorVisibilidade = new IntersectionObserver((entradas) => {
+                        if (entradas.some((entrada) => entrada.isIntersecting)) {
+                            this.garantir();
+                        }
+                    });
+
+                    this.observadorVisibilidade.observe(this.$el);
+                }
+            },
+
+            destroy() {
+                this.observadorVisibilidade?.disconnect();
+                this.observadorVisibilidade = null;
+                instancia?.destroy();
+                instancia = null;
+            },
+
+            garantirSeVisivel() {
+                if (this.$el.offsetParent !== null || this.$el.getClientRects().length > 0) {
+                    this.garantir();
+                }
+            },
+
+            garantir() {
+                if (instancia || ! this.$refs.superficie) {
+                    return;
+                }
+
+                instancia = new Editor({
+                    element: this.$refs.superficie,
+                    extensions: [
+                        StarterKit.configure({
+                            heading: false,
+                            codeBlock: false,
+                            blockquote: false,
+                            horizontalRule: false,
+                        }),
+                        TextStyle,
+                        Underline,
+                        Subscript,
+                        Superscript,
+                        Link.configure({
+                            openOnClick: false,
+                            autolink: true,
+                            linkOnPaste: true,
+                            HTMLAttributes: {
+                                class: 'text-indigo-600 underline',
+                                rel: 'noopener noreferrer',
+                                target: '_blank',
+                            },
+                        }),
+                        Placeholder.configure({
+                            placeholder: this.placeholder,
+                        }),
+                    ],
+                    content: this.html || '',
+                    editorProps: {
+                        attributes: {
+                            class: 'focus:outline-none',
+                            'aria-label': this.campo,
+                        },
+                    },
+                    onUpdate: ({ editor }) => {
+                        this.html = editor.getHTML();
+                        this.tick += 1;
+                    },
+                    onSelectionUpdate: () => {
+                        this.tick += 1;
+                    },
+                    onTransaction: () => {
+                        this.tick += 1;
+                    },
+                });
+
+                this.tick += 1;
+            },
+
+            comando(acao) {
+                if (! instancia) {
+                    this.garantir();
+                }
+
+                if (! instancia) {
+                    return;
+                }
+
+                const cadeia = instancia.chain().focus();
+
+                if (acao === 'undo') {
+                    cadeia.undo().run();
+                } else if (acao === 'redo') {
+                    cadeia.redo().run();
+                } else if (acao === 'bold') {
+                    cadeia.toggleBold().run();
+                } else if (acao === 'italic') {
+                    cadeia.toggleItalic().run();
+                } else if (acao === 'underline') {
+                    cadeia.toggleUnderline().run();
+                } else if (acao === 'strike') {
+                    cadeia.toggleStrike().run();
+                } else if (acao === 'subscript') {
+                    cadeia.toggleSubscript().run();
+                } else if (acao === 'superscript') {
+                    cadeia.toggleSuperscript().run();
+                } else if (acao === 'bulletList') {
+                    cadeia.toggleBulletList().run();
+                } else if (acao === 'orderedList') {
+                    cadeia.toggleOrderedList().run();
+                } else if (acao === 'unsetAllMarks') {
+                    cadeia.unsetAllMarks().run();
+                } else if (acao === 'link') {
+                    const urlAtual = instancia.getAttributes('link').href ?? '';
+                    const url = window.prompt('URL do link', urlAtual);
+
+                    if (url === null) {
+                        return;
+                    }
+
+                    const limpa = url.trim();
+
+                    if (limpa === '') {
+                        cadeia.extendMarkRange('link').unsetLink().run();
+                    } else {
+                        cadeia.extendMarkRange('link').setLink({ href: limpa }).run();
+                    }
+                }
+
+                this.tick += 1;
+            },
+
+            classeBotao(nome) {
+                void this.tick;
+                const base = 'rounded-md px-2 py-1 text-sm text-gray-700 hover:bg-gray-100';
+
+                if (! instancia) {
+                    return base;
+                }
+
+                const ativo = nome === 'link'
+                    ? instancia.isActive('link')
+                    : instancia.isActive(nome);
+
+                return ativo ? `${base} bg-indigo-100 text-indigo-700` : base;
+            },
+        };
+    });
 });
 
 Alpine.start();

@@ -16,9 +16,12 @@ use App\Support\Artigos\EnriquecerHtmlLiteralDoPdf;
 use App\Support\Artigos\ExtrairImagensDoPdf;
 use App\Support\Artigos\ExtrairTextoPdf;
 use App\Support\Artigos\MontarArtigoLiteralDoPdf;
+use App\Support\Artigos\ObterHtmlOriginalDoArtigoPorDoi;
+use App\Support\Artigos\PreferirConteudoHtmlOriginal;
 use App\Support\Artigos\RefinarMetadadosExtracaoPdf;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
@@ -231,6 +234,12 @@ TXT.str_repeat(' Continuacao fiel do texto do autor.', 25)."\nREFERENCES\n1. Len
 
     private function processarImportacao(ArtigoImportacao $importacao): void
     {
+        Http::fake([
+            'api.crossref.org/*' => Http::response(['status' => 'ok', 'message' => []], 200),
+            'www.scielo.br/*' => Http::response('not found', 404),
+            'scielo.br/*' => Http::response('not found', 404),
+        ]);
+
         $imagens = Mockery::mock(ExtrairImagensDoPdf::class);
         $imagens->shouldReceive('deCaminhoPublico')->andReturn([
             [
@@ -250,6 +259,8 @@ TXT.str_repeat(' Continuacao fiel do texto do autor.', 25)."\nREFERENCES\n1. Len
             $imagens,
             app(FormatarConteudoRicoComGemini::class),
             app(EnriquecerHtmlLiteralDoPdf::class),
+            app(ObterHtmlOriginalDoArtigoPorDoi::class),
+            app(PreferirConteudoHtmlOriginal::class),
         );
     }
 

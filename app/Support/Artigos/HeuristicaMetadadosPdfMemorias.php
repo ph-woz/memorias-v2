@@ -97,7 +97,8 @@ class HeuristicaMetadadosPdfMemorias
         }
 
         if ($this->campoVazio($metadados['seo_descricao'] ?? null) && ! $this->campoVazio($metadados['resumo'] ?? null)) {
-            $metadados['seo_descricao'] = mb_substr((string) $metadados['resumo'], 0, 160);
+            $resumoPlano = trim(html_entity_decode(strip_tags((string) $metadados['resumo']), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            $metadados['seo_descricao'] = mb_substr($resumoPlano, 0, 160);
         }
 
         if ($this->campoVazio($metadados['seo_palavras_chave'] ?? null) && ! $this->listaVazia($metadados['palavras_chave'] ?? null)) {
@@ -110,7 +111,7 @@ class HeuristicaMetadadosPdfMemorias
     private function extrairTitulo(string $inicio): ?string
     {
         if (preg_match(
-            '/\b(?:REVIEW|ORIGINAL ARTICLE|ARTICLE|RESEARCH ARTICLE|EDITORIAL)\b\s+(.+?)(?=\n\s*[A-Z][a-záéíóúâêôãõç]+ [A-ZÁÉÍÓÚÂÊÔÃÕÇ])/su',
+            '/\b(?:RESEARCH ARTICLE|ORIGINAL ARTICLE|REVIEW|EDITORIAL|ARTICLE)\b\s+(.+?)(?=\n\s*[A-Z][a-záéíóúâêôãõç]+ [A-ZÁÉÍÓÚÂÊÔÃÕÇ])/su',
             $inicio,
             $m,
         ) === 1) {
@@ -175,12 +176,30 @@ class HeuristicaMetadadosPdfMemorias
 
     private function extrairResumo(string $inicio): ?string
     {
+        // Abstract estruturado do portal atual: BACKGROUND / OBJECTIVES / METHODS / FINDINGS / MAIN CONCLUSIONS.
         if (preg_match(
-            '/(?:France|Brasil|Brazil|USA|Argentina|Chile|Peru|Mexico|México|Portugal|Spain|España)\s*\n+(Chagas disease .+?)(?=\nKey words?:|\nKeywords?:)/isu',
+            '/\bBACKGROUND\b\s*(.+?)(?=\nKey words?:|\nKeywords?:)/isu',
             $inicio,
             $m,
         ) === 1) {
-            return $this->compactar($m[1]);
+            $candidato = $this->compactar('BACKGROUND '.$m[1]);
+
+            if (preg_match('/\b(OBJECTIVES?|METHODS|FINDINGS|MAIN CONCLUSIONS?)\b/u', $candidato) === 1
+                && mb_strlen($candidato) >= 80) {
+                return $candidato;
+            }
+        }
+
+        if (preg_match(
+            '/(?:France|Brasil|Brazil|USA|Argentina|Chile|Peru|Mexico|México|Portugal|Spain|España)\s*\n+([A-Z].+?)(?=\nKey words?:|\nKeywords?:)/isu',
+            $inicio,
+            $m,
+        ) === 1) {
+            $candidato = $this->compactar($m[1]);
+
+            if (mb_strlen($candidato) >= 80 && ! preg_match('/^(doi:|Financial support)/iu', $candidato)) {
+                return $candidato;
+            }
         }
 
         if (preg_match('/\bAbstract[:\s]+(.+?)(?=\nKey words?:|\nKeywords?:)/isu', $inicio, $m) === 1) {
@@ -238,18 +257,37 @@ class HeuristicaMetadadosPdfMemorias
 
     private function extrairMarcadorCorpo(string $texto): ?string
     {
+        // Layout clássico do portal: corpo editorial completo após Accepted.
         if (preg_match('/Accepted\s+\d{1,2}\s+\w+\s+\d{4}\s*(.+)/isu', $texto, $m) === 1) {
             $depois = $this->compactar($m[1]);
-            $palavras = preg_split('/\s+/u', $depois) ?: [];
-            $janela = array_slice($palavras, 0, 12);
-            $marcador = trim(implode(' ', $janela));
 
-            if (mb_strlen($marcador) >= 24) {
-                return $marcador;
+            if (preg_match('/^(How to cite|Handling editor)/iu', $depois) !== 1) {
+                $marcador = $this->janelaMarcador($depois);
+
+                if ($marcador !== null) {
+                    return $marcador;
+                }
+            }
+        }
+
+        // Layout atual: prosa começa imediatamente após Key words.
+        if (preg_match('/(?:Key words?|Keywords?)\s*:[^\n]+\s*(.+)/isu', $texto, $m) === 1) {
+            $depois = $this->compactar($m[1]);
+
+            if (preg_match('/^(doi\s*:|Financial support|Received\b|Accepted\b|How to cite|Handling editor)/iu', $depois) !== 1) {
+                return $this->janelaMarcador($depois);
             }
         }
 
         return null;
+    }
+
+    private function janelaMarcador(string $depois): ?string
+    {
+        $palavras = preg_split('/\s+/u', $depois) ?: [];
+        $marcador = trim(implode(' ', array_slice($palavras, 0, 12)));
+
+        return mb_strlen($marcador) >= 24 ? $marcador : null;
     }
 
     private function doiPareceQuebrado(string $doi): bool

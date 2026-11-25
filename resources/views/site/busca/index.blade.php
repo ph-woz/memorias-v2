@@ -20,7 +20,9 @@
             <div class="mt-14">
                 @if (! $buscou)
                     <p class="border border-dashed border-ink/15 px-6 py-16 text-center text-sm text-ink-muted">
-                        {{ __('Digite um termo para encontrar artigos publicados.') }}
+                        {{ $incluirRascunhos
+                            ? __('Digite um termo para encontrar artigos publicados e rascunhos.')
+                            : __('Digite um termo para encontrar artigos publicados.') }}
                     </p>
                 @else
                     <div class="mb-8 flex flex-wrap items-end justify-between gap-3 border-b border-ink/10 pb-6">
@@ -30,6 +32,9 @@
                                 $artigos->total(),
                                 ['count' => $artigos->total(), 'termo' => $termo]
                             ) }}
+                            @if ($incluirRascunhos)
+                                <span class="text-ink/40">· {{ __('incluindo rascunhos') }}</span>
+                            @endif
                         </p>
                     </div>
 

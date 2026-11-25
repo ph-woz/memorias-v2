@@ -95,6 +95,29 @@ class EnriquecerHtmlLiteralDoPdf
         return $this->inserirImagens($html, $imagens);
     }
 
+    /**
+     * Tipografia rica para campos curtos (resumo, autor correspondente, instituições)
+     * sem repartir parágrafos longos nem injetar imagens do PDF.
+     */
+    public function polirCampoRico(string $html): string
+    {
+        $html = trim($html);
+
+        if ($html === '') {
+            return $html;
+        }
+
+        $html = $this->desifenizarHtml($html);
+
+        if (! str_contains($html, '<')) {
+            $html = $this->textoParaParagrafos($html);
+        }
+
+        $html = $this->garantirParagrafos($html);
+
+        return trim($this->aplicarTipografiaPreservandoTags($html));
+    }
+
     private function normalizarFiguras(string $html): string
     {
         $html = (string) preg_replace(
@@ -306,14 +329,19 @@ class EnriquecerHtmlLiteralDoPdf
             return false;
         }
 
-        if (preg_match('/^(Introduction|Methods|Results|Discussion|Conclusions?|Background|Objectives?|Findings|Main conclusions?|Material(?:s)? and methods?)\b/iu', $texto) === 1) {
+        if (preg_match('/^(Introduction|Methods|Results|Discussion|Conclusions?|Background|Objectives?|Findings|Main conclusions?|Material(?:s)? and methods?|Acknowledgements?|Authors(?:[’\'] contribution)?|In conclusion)\b/iu', $texto) === 1) {
             return true;
+        }
+
+        if (preg_match('/\b(Republic|Guiana|States|America|Brasil|Brazil|Argentina|Mexico|Chile|Peru|France|Spain)\b/i', $texto) === 1) {
+            return false;
         }
 
         return str_word_count($texto) <= 8
             && substr_count($texto, ',') === 0
             && preg_match('/^[A-Z][A-Za-z0-9 \-]+$/', $texto) === 1
-            && preg_match('/\b(the|and|of|in|to|for|with|from|that|this|are|was|were)\b/i', $texto) !== 1;
+            && preg_match('/\b(the|and|of|in|to|for|with|from|that|this|are|was|were)\b/i', $texto) !== 1
+            && preg_match('/\b(until|after|before|species|vectors|control|diagnosis|treatment|surveillance|challenges|strategies|overview)\b/i', $texto) === 1;
     }
 
     private function pareceSubtituloNegrito(string $texto): bool
@@ -351,13 +379,27 @@ class EnriquecerHtmlLiteralDoPdf
             'Continuacao', 'Continuação', 'Methods', 'Results', 'Discussion',
         ];
 
-        return (string) preg_replace_callback(
+        // Binômio completo: "Triatoma infestans".
+        $textoEscapado = (string) preg_replace_callback(
             '/(?<!<\/em>)\b([A-Z][a-z]{2,})\s([a-z]{3,})\b(?![^<]*<\/em>)/u',
             function (array $m) use ($bloqueados): string {
                 if (in_array($m[1], $bloqueados, true)) {
                     return $m[0];
                 }
 
+                if (! $this->pareceEpitetoEspecifico($m[2])) {
+                    return $m[0];
+                }
+
+                return '<em>'.$m[1].' '.$m[2].'</em>';
+            },
+            $textoEscapado,
+        );
+
+        // Abreviação como no HTML do portal: "T. infestans", "R. prolixus".
+        return (string) preg_replace_callback(
+            '/(?<!<\/em>)\b([A-Z]\.)\s([a-z]{3,})\b(?![^<]*<\/em>)/u',
+            function (array $m): string {
                 if (! $this->pareceEpitetoEspecifico($m[2])) {
                     return $m[0];
                 }

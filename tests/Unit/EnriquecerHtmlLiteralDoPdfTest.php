@@ -23,6 +23,12 @@ class EnriquecerHtmlLiteralDoPdfTest extends TestCase
         $this->assertStringContainsString('<em>Triatoma infestans</em>', $resultado);
         $this->assertStringContainsString('<em>Rhodnius prolixus</em>', $resultado);
         $this->assertStringContainsString('<sup>(2)</sup>', $resultado);
+
+        $comAbreviacao = (new EnriquecerHtmlLiteralDoPdf)->polir(
+            '<p>Transmission by T. infestans and R. prolixus remains relevant. (5)</p>'
+        );
+        $this->assertStringContainsString('<em>T. infestans</em>', $comAbreviacao);
+        $this->assertStringContainsString('<em>R. prolixus</em>', $comAbreviacao);
         $this->assertStringNotContainsString('<em>Resultados completos</em>', $resultado);
         $this->assertStringContainsString('<img src="/storage/artigos/conteudo/fig-1.jpg"', $resultado);
     }
@@ -60,5 +66,23 @@ class EnriquecerHtmlLiteralDoPdfTest extends TestCase
         $this->assertStringContainsString('epidemiology', $resultado);
         $this->assertStringNotContainsString('Cha- gas', $resultado);
         $this->assertStringNotContainsString('epidemiol- ogy', $resultado);
+    }
+
+    public function test_polir_campo_rico_converte_texto_e_preserva_html(): void
+    {
+        $enriquecedor = new EnriquecerHtmlLiteralDoPdf;
+
+        $deTexto = $enriquecedor->polirCampoRico(
+            "BACKGROUND Extracellular vesicles.\n\nCorresponding author: jcosta@ioc.fiocruz.br"
+        );
+        $this->assertStringContainsString('<p>', $deTexto);
+        $this->assertStringContainsString('BACKGROUND Extracellular vesicles.', $deTexto);
+        $this->assertStringNotContainsString('<img', $deTexto);
+
+        $deHtml = $enriquecedor->polirCampoRico(
+            '<p>Already marked <em>Triatoma infestans</em> stays.</p>'
+        );
+        $this->assertStringContainsString('<em>Triatoma infestans</em>', $deHtml);
+        $this->assertSame(1, substr_count($deHtml, '<em>Triatoma infestans</em>'));
     }
 }

@@ -39,6 +39,10 @@
                 <span class="font-normal tracking-normal text-ink-muted">
                     · <time datetime="{{ $artigo->publicado_em->toDateString() }}">{{ $artigo->publicado_em->translatedFormat('d M Y') }}</time>
                 </span>
+            @elseif (! $artigo->estaPublicado())
+                <span class="font-normal tracking-normal text-amber-700">
+                    · {{ __('Rascunho') }}
+                </span>
             @endif
         </p>
 
@@ -50,13 +54,16 @@
             {{ $artigo->titulo }}
         </h3>
 
-        @if ($artigo->resumo)
+        @php
+            $resumoCard = trim(html_entity_decode(strip_tags((string) $artigo->resumo), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        @endphp
+        @if ($resumoCard !== '')
             <p @class([
                 'mt-4 leading-relaxed text-ink-muted',
                 'line-clamp-4 text-base sm:text-lg' => $destaque,
                 'line-clamp-2 text-sm' => ! $destaque,
             ])>
-                {{ $artigo->resumo }}
+                {{ $resumoCard }}
             </p>
         @endif
 

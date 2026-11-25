@@ -183,11 +183,18 @@
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="px-4 py-3 text-gray-600">
-                                        {{ $artigo->categorias->pluck('nome')->join(', ') ?: '—' }}
+                                    <td class="max-w-[10rem] px-4 py-3 text-gray-600">
+                                        <p class="truncate" title="{{ $artigo->categorias->pluck('nome')->join(', ') }}">
+                                            {{ $artigo->categorias->pluck('nome')->join(', ') ?: '—' }}
+                                        </p>
                                     </td>
-                                    <td class="px-4 py-3 text-gray-600">
-                                        {{ $artigo->autores->pluck('nome')->join(', ') ?: '—' }}
+                                    <td class="max-w-[14rem] px-4 py-3 text-gray-600">
+                                        @php
+                                            $nomesAutores = $artigo->autores->pluck('nome')->join(', ');
+                                        @endphp
+                                        <p class="truncate" title="{{ $nomesAutores }}">
+                                            {{ $nomesAutores !== '' ? $nomesAutores : '—' }}
+                                        </p>
                                     </td>
                                     <td class="px-4 py-3">
                                         <span @class([

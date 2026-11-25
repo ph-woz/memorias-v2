@@ -54,4 +54,52 @@ TXT;
         $this->assertStringContainsString('Despite the great achievements', $resultado['marcador_inicio_corpo']);
         $this->assertSame('REFERENCES', $resultado['marcador_inicio_referencias']);
     }
+
+    public function test_completa_abstract_estruturado_e_corpo_apos_key_words(): void
+    {
+        $texto = <<<'TXT'
+Mem Inst Oswaldo Cruz, Rio de Janeiro, Vol. 121: e250109, 2026 1|17online | memorias.ioc.fiocruz.br
+RESEARCH ARTICLE
+Extracellular vesicles isolated from the plasma of COVID-19 and sepsis
+patients: characterisation and association with clinical outcomes
+Ana Souza
+1
+/
++
+, Bruno Lima
+2
+1
+Universidade Federal de São Paulo, São Paulo, SP, Brasil
+2
+Fundação Oswaldo Cruz-Fiocruz, Belo Horizonte, MG, Brasil
+BACKGROUND
+ Extracellular vesicles (EVs) are involved in the pathogenesis of SARS-CoV-2 infection.
+OBJECTIVES We analysed concentration and size of EVs in plasma samples.
+METHODS Plasma samples from COVID-19 patients were analysed by NTA and flow cytometry.
+FINDINGS NTA showed an increased concentration of microparticles in patients.
+MAIN CONCLUSIONS Our findings suggest that patients EVs likely harboured viral components.
+Key words: extracellular vesicles - SARS-CoV-2 - COVID-19 - sepsis
+Since 2003, coronaviruses have been the cause of serious and fatal diseases in humans worldwide.
+doi: 10.1590/0074-02760250109
+Financial support: FAPESP.
++ Corresponding authors: ana@example.com
+Received 29 April 2025
+Accepted 26 September 2025
+How to cite: Souza A, Lima B. Extracellular vesicles. Mem Inst Oswaldo Cruz. 2026; 121: e250109.
+Handling editor: Adeilton Alves Brandão
+More body continues after the sidebar noise with clinical outcomes discussed.
+REFERENCES
+1. Tay MZ. The trinity of COVID-19. 2020.
+TXT;
+
+        $resultado = (new HeuristicaMetadadosPdfMemorias)->completar($texto, []);
+
+        $this->assertStringContainsString('Extracellular vesicles isolated from the plasma', $resultado['titulo']);
+        $this->assertSame('10.1590/0074-02760250109', $resultado['doi']);
+        $this->assertStringStartsWith('BACKGROUND', $resultado['resumo']);
+        $this->assertStringContainsString('MAIN CONCLUSIONS', $resultado['resumo']);
+        $this->assertContains('extracellular vesicles', $resultado['palavras_chave']);
+        $this->assertStringStartsWith('Since 2003, coronaviruses', $resultado['marcador_inicio_corpo']);
+        $this->assertStringNotContainsString('How to cite', $resultado['marcador_inicio_corpo']);
+    }
 }

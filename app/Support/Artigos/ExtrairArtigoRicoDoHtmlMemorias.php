@@ -37,8 +37,9 @@ class ExtrairArtigoRicoDoHtmlMemorias
         $corpoHtml = $this->extrairCorpo($xpath);
         $referencias = $this->extrairReferencias($xpath);
         $keywords = $this->extrairKeywords($xpath);
+        $pdfDownload = $this->extrairUrlPdf($xpath, $baseUrl);
 
-        if ($tituloNode === null && $corpoHtml === '') {
+        if ($tituloNode === null && $corpoHtml === '' && $referencias === []) {
             return null;
         }
 
@@ -61,6 +62,8 @@ class ExtrairArtigoRicoDoHtmlMemorias
             'conteudo_html' => $this->limparHtml($corpoHtml),
             'referencias' => $referencias,
             'imagens' => $this->listarImagens($corpoHtml.' '.($abstractNode ? $this->innerHtml($abstractNode) : ''), $baseUrl),
+            'pdf_url' => $pdfDownload,
+            'corpo_somente_pdf' => $corpoHtml === '' && $pdfDownload !== null,
             'fonte' => 'memorias',
             'base_url' => $baseUrl,
         ];
@@ -75,6 +78,8 @@ class ExtrairArtigoRicoDoHtmlMemorias
         }
 
         // O primeiro full-content costuma ser o abstract; o corpo editorial vem depois.
+        // Artigos recentes do portal frequentemente não publicam o corpo em HTML
+        // (só abstract + referências + PDF) — não tratar referências como corpo.
         $html = '';
 
         foreach ($nodes as $indice => $node) {
@@ -82,17 +87,60 @@ class ExtrairArtigoRicoDoHtmlMemorias
                 continue;
             }
 
-            if ($indice === 0 && $xpath->query('.//*[@id="textabstract"]', $node)->length > 0) {
+            if ($xpath->query('.//*[@id="textabstract"]', $node)->length > 0) {
+                continue;
+            }
+
+            if ($this->blocoESoReferencias($xpath, $node)) {
                 continue;
             }
 
             $html .= $this->innerHtml($node);
         }
 
-        // Remove bloco de keywords se veio embutido.
+        // Remove bloco de keywords/referências se veio embutido.
         $html = preg_replace('/<div[^>]*class="keywords"[^>]*>.*?<\/div>/is', '', $html) ?? $html;
+        $html = preg_replace('/<div[^>]*class="references"[^>]*>.*?<\/div>/is', '', $html) ?? $html;
 
         return trim($html);
+    }
+
+    private function blocoESoReferencias(DOMXPath $xpath, DOMNode $node): bool
+    {
+        $refs = $xpath->query('.//div[contains(concat(" ", normalize-space(@class), " "), " reference ")]', $node);
+        $paras = $xpath->query('.//p', $node);
+        $nRefs = $refs === false ? 0 : $refs->length;
+        $nParas = $paras === false ? 0 : $paras->length;
+
+        if ($nRefs >= 3 && $nParas === 0) {
+            return true;
+        }
+
+        $texto = trim(preg_replace('/\s+/u', ' ', $node->textContent ?? '') ?? '');
+
+        return $nRefs > 0 && preg_match('/^REFERENCES\b/iu', $texto) === 1 && $nParas === 0;
+    }
+
+    private function extrairUrlPdf(DOMXPath $xpath, string $baseUrl): ?string
+    {
+        $nodes = $xpath->query('//a[contains(@href,"task=artigo.download")]');
+
+        if ($nodes === false || $nodes->length === 0) {
+            return null;
+        }
+
+        $link = $nodes->item(0);
+        $href = $link instanceof DOMElement ? trim($link->getAttribute('href')) : '';
+
+        if ($href === '') {
+            return null;
+        }
+
+        if (str_starts_with($href, 'http')) {
+            return $href;
+        }
+
+        return rtrim($baseUrl, '/').'/'.ltrim($href, '/');
     }
 
     /**
@@ -100,7 +148,8 @@ class ExtrairArtigoRicoDoHtmlMemorias
      */
     private function extrairReferencias(DOMXPath $xpath): array
     {
-        $nodes = $xpath->query('//aside[@id="references"]//div[contains(@class,"reference")]');
+        // Classe exata "reference" — evita casar "references" / "links-reference".
+        $nodes = $xpath->query('//aside[@id="references"]//div[contains(concat(" ", normalize-space(@class), " "), " reference ")]');
         $refs = [];
 
         if ($nodes === false) {
@@ -143,7 +192,7 @@ class ExtrairArtigoRicoDoHtmlMemorias
             $texto = trim(html_entity_decode(strip_tags($this->innerHtml($clone)), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
             $texto = preg_replace('/\s+/u', ' ', $texto) ?? $texto;
 
-            if ($texto === '') {
+            if ($texto === '' || preg_match('/^REFERENCES$/iu', $texto) === 1) {
                 continue;
             }
 

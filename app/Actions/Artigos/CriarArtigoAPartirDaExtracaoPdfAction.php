@@ -59,7 +59,11 @@ class CriarArtigoAPartirDaExtracaoPdfAction
                 'endereco_instituicoes' => $this->texto($extracao['endereco_instituicoes'] ?? null),
                 'autor_correspondente' => $this->texto($extracao['autor_correspondente'] ?? null),
                 'seo_titulo' => $this->limitar($this->texto($extracao['seo_titulo'] ?? null) ?? $titulo, 70),
-                'seo_descricao' => $this->limitar($this->texto($extracao['seo_descricao'] ?? null), 160),
+                'seo_descricao' => $this->limitar(
+                    $this->textoPlano($extracao['seo_descricao'] ?? null)
+                        ?? $this->textoPlano($extracao['resumo'] ?? null),
+                    160,
+                ),
                 'seo_palavras_chave' => $this->limitar($this->texto($extracao['seo_palavras_chave'] ?? null), 255),
                 'status' => StatusArtigo::Rascunho,
                 'publicado_em' => null,
@@ -111,6 +115,20 @@ class CriarArtigoAPartirDaExtracaoPdfAction
         }
 
         $texto = trim((string) $valor);
+
+        return $texto !== '' ? $texto : null;
+    }
+
+    private function textoPlano(mixed $valor): ?string
+    {
+        $html = $this->texto($valor);
+
+        if ($html === null) {
+            return null;
+        }
+
+        $texto = trim(html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        $texto = trim(preg_replace('/\s+/u', ' ', $texto) ?? $texto);
 
         return $texto !== '' ? $texto : null;
     }

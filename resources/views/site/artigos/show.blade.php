@@ -2,13 +2,9 @@
 
 @section('title', $artigo->titulo.' — Memórias')
 
-@section('meta')
-    @if ($artigo->seo_descricao ?: $artigo->resumo)
-        <meta name="description" content="{{ $artigo->seo_descricao ?: $artigo->resumo }}">
-    @endif
-@endsection
-
 @php
+    $resumoTextoPlano = trim(html_entity_decode(strip_tags((string) $artigo->resumo), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    $descricaoMeta = $artigo->seo_descricao ?: ($resumoTextoPlano !== '' ? $resumoTextoPlano : null);
     $conteudoComCitacoes = app(\App\Support\Artigos\VinculaCitacoesNoConteudo::class)((string) $artigo->conteudo);
     $referenciasPainel = $artigo->referencias
         ->values()
@@ -19,18 +15,27 @@
         ->all();
 @endphp
 
+@section('meta')
+    @if ($descricaoMeta)
+        <meta name="description" content="{{ $descricaoMeta }}">
+    @endif
+@endsection
+
 @section('content')
-    <div x-data="artigoReferenciasPainel(@js($referenciasPainel))">
+    <div
+        x-data
+        x-init="$store.artigoReferencias.configurar(@js($referenciasPainel))"
+    >
         <article class="pt-24">
             @unless ($artigo->estaPublicado())
-                <div class="mx-auto max-w-3xl px-5 sm:px-8">
+                <div class="mx-auto max-w-6xl px-5 sm:px-8 lg:px-10">
                     <div class="mb-6 border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                         {{ __('Este artigo ainda é um rascunho.') }}
                     </div>
                 </div>
             @endunless
 
-            <header class="mx-auto max-w-3xl px-5 sm:px-8">
+            <header class="mx-auto max-w-6xl px-5 sm:px-8 lg:px-10">
                 <p class="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-accent-deep">
                     @if ($artigo->categorias->isNotEmpty())
                         @foreach ($artigo->categorias as $categoria)
@@ -51,7 +56,7 @@
                     @endif
                 </p>
 
-                <h1 class="mt-5 font-display text-display font-semibold text-ink">
+                <h1 class="mt-5 font-display text-display-sm font-semibold leading-tight text-ink lg:text-[3.25rem] lg:leading-[1.12]">
                     {{ $artigo->titulo }}
                 </h1>
 
@@ -111,16 +116,36 @@
                 </div>
             @endif
 
-            <div class="mx-auto max-w-3xl px-5 sm:px-8">
-                @if ($artigo->resumo)
-                    <p class="mt-12 font-display text-2xl leading-snug text-ink-muted sm:text-3xl">
-                        {{ $artigo->resumo }}
-                    </p>
+            <div class="mx-auto max-w-6xl px-5 sm:px-8 lg:px-10">
+                @if ($resumoTextoPlano !== '')
+                    <div class="conteudo-rico conteudo-rico--resumo prose prose-stone mt-14 max-w-none font-display text-ink-muted prose-a:text-accent-deep">
+                        {!! $artigo->resumo !!}
+                    </div>
+                @endif
+
+                @if (filled($artigo->autor_correspondente) || filled($artigo->endereco_instituicoes))
+                    <div class="mt-12 space-y-8 border-t border-ink/10 pt-10 text-base leading-relaxed text-ink-muted">
+                        @if (filled($artigo->endereco_instituicoes))
+                            <div>
+                                <p class="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-ink/45">{{ __('Endereço das instituições') }}</p>
+                                <div class="conteudo-rico prose prose-stone mt-4 max-w-none prose-a:text-accent-deep">
+                                    {!! $artigo->endereco_instituicoes !!}
+                                </div>
+                            </div>
+                        @endif
+                        @if (filled($artigo->autor_correspondente))
+                            <div>
+                                <p class="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-ink/45">{{ __('Autor correspondente') }}</p>
+                                <div class="conteudo-rico prose prose-stone mt-4 max-w-none prose-a:text-accent-deep">
+                                    {!! $artigo->autor_correspondente !!}
+                                </div>
+                            </div>
+                        @endif
+                    </div>
                 @endif
 
                 <div
-                    class="conteudo-rico prose prose-stone mt-12 max-w-none prose-headings:font-display prose-headings:tracking-tight prose-a:text-accent-deep"
-                    @click="tratarCliqueCitacao($event)"
+                    class="conteudo-rico prose prose-xl prose-stone mt-16 max-w-none prose-headings:font-display prose-headings:tracking-tight prose-a:text-accent-deep"
                 >
                     {!! $conteudoComCitacoes !!}
                 </div>
@@ -176,11 +201,12 @@
                 @endif
             </div>
         </article>
-
-        @if ($artigo->referencias->isNotEmpty())
-            <x-site.painel-referencias :referencias="$artigo->referencias" />
-        @endif
     </div>
+
+    {{-- Fora do wrapper do artigo: HTML importado pode quebrar o DOM e expulsar o aside. --}}
+    @if ($artigo->referencias->isNotEmpty())
+        <x-site.painel-referencias />
+    @endif
 
     @if ($relacionados->isNotEmpty())
         <section class="mt-20 border-t border-ink/10 bg-paper-warm/60 py-16">

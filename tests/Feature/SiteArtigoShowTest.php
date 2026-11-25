@@ -68,7 +68,7 @@ class SiteArtigoShowTest extends TestCase
             ->assertOk()
             ->assertSee('class="citacao-ref"', false)
             ->assertSee('data-refs="1,2"', false)
-            ->assertSee('artigoReferenciasPainel', false)
+            ->assertSee('artigoReferencias', false)
             ->assertSeeText('Primeira referência completa.')
             ->assertSeeText('Segunda referência completa.');
     }

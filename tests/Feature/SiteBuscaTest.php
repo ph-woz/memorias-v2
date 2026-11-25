@@ -75,4 +75,38 @@ class SiteBuscaTest extends TestCase
             ->assertOk()
             ->assertSeeText('Artigo com autor especial');
     }
+
+    public function test_usuario_autenticado_encontra_rascunhos_na_busca(): void
+    {
+        $usuario = User::factory()->create();
+
+        Artigo::factory()->for($usuario, 'cadastrante')->create([
+            'titulo' => 'Extracellular vesicles in draft search',
+            'status' => StatusArtigo::Rascunho,
+            'publicado_em' => null,
+        ]);
+
+        $this->actingAs($usuario)
+            ->get(route('site.busca', ['q' => 'Extracellular']))
+            ->assertOk()
+            ->assertSeeText('Extracellular vesicles in draft search')
+            ->assertSeeText('Rascunho')
+            ->assertSeeText('incluindo rascunhos');
+    }
+
+    public function test_visitante_nao_encontra_rascunhos_na_busca(): void
+    {
+        $usuario = User::factory()->create();
+
+        Artigo::factory()->for($usuario, 'cadastrante')->create([
+            'titulo' => 'Extracellular vesicles in draft search',
+            'status' => StatusArtigo::Rascunho,
+            'publicado_em' => null,
+        ]);
+
+        $this->get(route('site.busca', ['q' => 'Extracellular']))
+            ->assertOk()
+            ->assertDontSeeText('Extracellular vesicles in draft search')
+            ->assertSeeText('Nenhum artigo encontrado');
+    }
 }

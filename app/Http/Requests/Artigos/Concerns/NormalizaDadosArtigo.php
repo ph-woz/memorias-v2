@@ -43,10 +43,10 @@ trait NormalizaDadosArtigo
                 ? (string) $payload['slug']
                 : $payload['titulo'],
             'doi' => $this->textoOpcional($payload['doi'] ?? null),
-            'resumo' => $this->textoOpcional($payload['resumo'] ?? null),
+            'resumo' => $this->htmlOpcional($payload['resumo'] ?? null),
             'conteudo' => $payload['conteudo'],
-            'endereco_instituicoes' => $this->textoOpcional($payload['endereco_instituicoes'] ?? null),
-            'autor_correspondente' => $this->textoOpcional($payload['autor_correspondente'] ?? null),
+            'endereco_instituicoes' => $this->htmlOpcional($payload['endereco_instituicoes'] ?? null),
+            'autor_correspondente' => $this->htmlOpcional($payload['autor_correspondente'] ?? null),
             'status' => $status,
             'categorias' => $this->idsLimpos($payload['categorias'] ?? []),
             'autores' => $this->textosLimpos($payload['autores'] ?? []),
@@ -140,5 +140,17 @@ trait NormalizaDadosArtigo
         $texto = trim((string) $value);
 
         return $texto !== '' ? $texto : null;
+    }
+
+    private function htmlOpcional(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $html = trim((string) $value);
+        $texto = trim(html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+
+        return $texto !== '' ? $html : null;
     }
 }

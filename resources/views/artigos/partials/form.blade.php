@@ -44,6 +44,8 @@
     $abaInicial = 'principal';
     if ($errors->hasAny(['conteudo'])) {
         $abaInicial = 'conteudo';
+    } elseif ($errors->hasAny(['resumo'])) {
+        $abaInicial = 'principal';
     } elseif ($errors->hasAny(['autores', 'autores.*'])) {
         $abaInicial = 'autores';
     } elseif ($errors->hasAny(['autor_correspondente'])) {
@@ -216,9 +218,9 @@
                         x-ref="cropImagem"
                         :src="cropSrc"
                         alt=""
-                        class="absolute max-w-none select-none"
+                        class="absolute left-0 top-0 max-w-none select-none"
                         draggable="false"
-                        :style="estiloCropImg"
+                        :style="estiloCropImg()"
                         @load="ajustarCrop()"
                     >
                 </div>
@@ -259,12 +261,13 @@
 
         <div>
             <x-input-label for="resumo" :value="__('Resumo')" />
-            <textarea
-                id="resumo"
-                name="resumo"
-                rows="3"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            >{{ old('resumo', $artigo->resumo ?? '') }}</textarea>
+            @include('artigos.partials.editor-rico-campo', [
+                'name' => 'resumo',
+                'label' => __('Resumo'),
+                'html' => old('resumo', $artigo->resumo ?? ''),
+                'placeholder' => __('Escreva o resumo do artigo…'),
+                'minHeight' => '9rem',
+            ])
             <x-input-error class="mt-2" :messages="$errors->get('resumo')" />
         </div>
 
@@ -551,12 +554,13 @@
     <div x-show="aba === 'autor-correspondente'" x-cloak class="space-y-4">
         <div>
             <x-input-label for="autor_correspondente" :value="__('Autor correspondente')" />
-            <textarea
-                id="autor_correspondente"
-                name="autor_correspondente"
-                rows="8"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            >{{ old('autor_correspondente', $artigo->autor_correspondente ?? '') }}</textarea>
+            @include('artigos.partials.editor-rico-campo', [
+                'name' => 'autor_correspondente',
+                'label' => __('Autor correspondente'),
+                'html' => old('autor_correspondente', $artigo->autor_correspondente ?? ''),
+                'placeholder' => __('Dados do autor correspondente…'),
+                'minHeight' => '12rem',
+            ])
             <x-input-error class="mt-2" :messages="$errors->get('autor_correspondente')" />
         </div>
     </div>
@@ -564,12 +568,13 @@
     <div x-show="aba === 'endereco-instituicoes'" x-cloak class="space-y-4">
         <div>
             <x-input-label for="endereco_instituicoes" :value="__('Endereço das instituições')" />
-            <textarea
-                id="endereco_instituicoes"
-                name="endereco_instituicoes"
-                rows="8"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            >{{ old('endereco_instituicoes', $artigo->endereco_instituicoes ?? '') }}</textarea>
+            @include('artigos.partials.editor-rico-campo', [
+                'name' => 'endereco_instituicoes',
+                'label' => __('Endereço das instituições'),
+                'html' => old('endereco_instituicoes', $artigo->endereco_instituicoes ?? ''),
+                'placeholder' => __('Endereços institucionais dos autores…'),
+                'minHeight' => '12rem',
+            ])
             <x-input-error class="mt-2" :messages="$errors->get('endereco_instituicoes')" />
         </div>
     </div>

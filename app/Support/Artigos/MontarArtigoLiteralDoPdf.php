@@ -34,15 +34,9 @@ class MontarArtigoLiteralDoPdf
         $posCorpo = $inicioCorpo !== '' ? $this->encontrarPosicao($textoPdf, $inicioCorpo) : null;
         $posRefs = $inicioRefs !== '' ? $this->encontrarPosicao($textoPdf, $inicioRefs) : null;
 
-        // Layout Memórias: o corpo editorial começa SEMPRE após "Accepted …".
-        // A IA costuma apontar para um trecho no meio do artigo.
-        $posAccepted = $this->posicaoAposAccepted($textoPdf);
-
-        if ($posAccepted !== null) {
-            $posCorpo = $posAccepted;
-        } elseif ($posCorpo === null) {
-            $posCorpo = $this->inferirInicioCorpo($textoPdf, $metadados);
-        }
+        // Portal/PDF Memórias: corpo começa após Key words (layout atual) ou após Accepted
+        // (layout clássico). A IA costuma apontar para o meio do artigo — sobrescrevemos.
+        $posCorpo = $this->resolverInicioCorpoEditorial($textoPdf, $posCorpo, $metadados);
 
         if ($posCorpo === null) {
             throw new RuntimeException('Não foi possível localizar o início do corpo do artigo no texto do PDF.');
@@ -65,6 +59,9 @@ class MontarArtigoLiteralDoPdf
             : '';
 
         $trechoCorpo = $this->removerCabecalhosDePagina(trim($trechoCorpo));
+        $trechoCorpo = $this->fundirFragmentoDeColuna($textoPdf, $trechoCorpo);
+        $trechoCorpo = $this->removerBlocosLateraisIntercalados($trechoCorpo);
+        $trechoCorpo = $this->normalizarCitacoesDoPdf($trechoCorpo);
         $metadados['conteudo_html'] = $this->textoParaHtmlLiteral($trechoCorpo);
         $metadados['referencias'] = $this->referenciasLiterais(trim($trechoRefs));
 
@@ -287,15 +284,202 @@ class MontarArtigoLiteralDoPdf
         return preg_replace('/(\p{L})[\-\x{2010}\x{2011}]\s+(\p{Lu})/u', '$1-$2', $texto) ?? $texto;
     }
 
+    /**
+     * @param  array<string, mixed>  $metadados
+     */
+    private function resolverInicioCorpoEditorial(string $textoPdf, ?int $posMarcador, array $metadados): ?int
+    {
+        $posAccepted = $this->posicaoAposAccepted($textoPdf);
+        $posKeywords = $this->posicaoAposPalavrasChave($textoPdf);
+
+        // Layout clássico do portal (HTML completo): o corpo editorial recomeça
+        // integralmente após "Accepted …". Preferir isso evita o fragmento de
+        // coluna que o PDF injeta entre Key words e o bloco lateral.
+        if ($posAccepted !== null) {
+            return $posAccepted;
+        }
+
+        // Layout atual: muitos artigos só têm corpo no PDF e a prosa começa
+        // logo após Key words (Accepted fica na lateral com "How to cite").
+        if ($posKeywords !== null) {
+            return $posKeywords;
+        }
+
+        if ($posMarcador !== null) {
+            return $posMarcador;
+        }
+
+        return $this->inferirInicioCorpo($textoPdf, $metadados);
+    }
+
+    private function posicaoAposPalavrasChave(string $textoPdf): ?int
+    {
+        if (preg_match(
+            '/(?:Key words?|Keywords?|Palavras[-\s]?chave)\s*:\s*[^\n]+/iu',
+            $textoPdf,
+            $m,
+            PREG_OFFSET_CAPTURE,
+        ) !== 1) {
+            return null;
+        }
+
+        $fim = (int) $m[0][1] + strlen($m[0][0]);
+        $pos = $this->offsetBytesParaMb($textoPdf, $fim);
+        $depois = ltrim(mb_substr($textoPdf, $pos));
+
+        if ($depois === '') {
+            return null;
+        }
+
+        // Layout clássico: após keywords ainda vêm doi / financial / Accepted.
+        if (preg_match('/^(doi\s*:|Financial support|Received\b|Accepted\b|How to cite|Handling editor|\+\s*Corresponding)/iu', $depois) === 1) {
+            return null;
+        }
+
+        // Precisa parecer prosa editorial, não metadado solto.
+        if (mb_strlen($depois) < 40) {
+            return null;
+        }
+
+        return $pos;
+    }
+
     private function posicaoAposAccepted(string $textoPdf): ?int
     {
-        if (preg_match('/Accepted\s+\d{1,2}\s+\w+\s+\d{4}\s+/iu', $textoPdf, $m, PREG_OFFSET_CAPTURE) !== 1) {
+        if (preg_match('/Accepted\s+\d{1,2}\s+\w+\s+\d{4}\s*/iu', $textoPdf, $m, PREG_OFFSET_CAPTURE) !== 1) {
             return null;
         }
 
         $fimAccepted = (int) $m[0][1] + strlen($m[0][0]);
+        $depois = ltrim(substr($textoPdf, $fimAccepted));
+
+        // Coluna lateral moderna: depois de Accepted vem "How to cite" / editor.
+        if ($depois !== '' && preg_match('/^(How to cite|Handling editor|License\b|This is an Open Access)/iu', $depois) === 1) {
+            return null;
+        }
 
         return $this->offsetBytesParaMb($textoPdf, $fimAccepted);
+    }
+
+    private function removerBlocosLateraisIntercalados(string $texto): string
+    {
+        // Extratores PDF misturam a coluna lateral (doi, support, how to cite) no corpo.
+        $texto = preg_replace('/\n?\s*doi:\s*10\.\d{4,}\/[^\n]+/iu', "\n", $texto) ?? $texto;
+        // Fragmentos de DOI quebrados pelo layout (ex.: "0 074 - 02760210 015").
+        $texto = preg_replace('/\b10\.1590\/\s*[0-9\s\-]+/iu', ' ', $texto) ?? $texto;
+        $texto = preg_replace('/(?<=\s)0?\s*\d{0,3}\s*074\s*-\s*02760\d+(?:\s+\d{3})?(?=\s)/u', ' ', $texto) ?? $texto;
+        $texto = preg_replace(
+            '/Financial support:.*?Accepted\s+\d{1,2}\s+\w+\s+\d{4}/isu',
+            ' ',
+            $texto,
+        ) ?? $texto;
+        $texto = preg_replace(
+            '/\+\s*Corresponding authors?:[^\n]*/iu',
+            ' ',
+            $texto,
+        ) ?? $texto;
+        $texto = preg_replace(
+            '/How to cite:.*?Handling editor:[^\n]*/isu',
+            ' ',
+            $texto,
+        ) ?? $texto;
+        $texto = preg_replace('/Received\s+\d{1,2}\s+\w+\s+\d{4}/iu', ' ', $texto) ?? $texto;
+        $texto = preg_replace('/Accepted\s+\d{1,2}\s+\w+\s+\d{4}/iu', ' ', $texto) ?? $texto;
+
+        return trim(preg_replace('/[ ]{2,}/u', ' ', $texto) ?? $texto);
+    }
+
+    /**
+     * No layout clássico das Memórias, o extrator PDF joga um pedaço do 1º corpo
+     * entre Key words e o bloco lateral (doi/Accepted). Reinsere esse fragmento
+     * na costura típica "Chile, in the last years" → texto contínuo como no HTML.
+     */
+    private function fundirFragmentoDeColuna(string $textoPdf, string $trechoCorpo): string
+    {
+        $fragmento = $this->extrairFragmentoEntreKeywordsESidebar($textoPdf);
+
+        if ($fragmento === null) {
+            return $trechoCorpo;
+        }
+
+        $fragCompacto = trim(preg_replace('/\s+/u', ' ', $fragmento) ?? $fragmento);
+        $corpoCompacto = preg_replace('/\s+/u', ' ', $trechoCorpo) ?? $trechoCorpo;
+
+        if (mb_strlen($fragCompacto) < 80) {
+            return $trechoCorpo;
+        }
+
+        $ancora = mb_substr($fragCompacto, 0, 48);
+
+        if ($ancora !== '' && mb_stripos($corpoCompacto, $ancora) !== false) {
+            return $trechoCorpo;
+        }
+
+        // Costura após remoção do cabeçalho de página: "Place, in the/of the/...".
+        if (preg_match(
+            '/\b([A-Z][a-z]+),\s+((?:in|of|to|for|with|by|on|at)\s+the\b)/u',
+            $trechoCorpo,
+            $m,
+            PREG_OFFSET_CAPTURE,
+        ) !== 1) {
+            return $trechoCorpo;
+        }
+
+        $offsetContinuacao = (int) $m[2][1];
+
+        if ($offsetContinuacao > 2200) {
+            return $trechoCorpo;
+        }
+
+        $antes = substr($trechoCorpo, 0, $offsetContinuacao);
+        $depois = substr($trechoCorpo, $offsetContinuacao);
+
+        return rtrim($antes).' '.$fragCompacto.' '.$depois;
+    }
+
+    private function extrairFragmentoEntreKeywordsESidebar(string $textoPdf): ?string
+    {
+        if (preg_match(
+            '/(?:Key words?|Keywords?)\s*:[^\n]+\s*(.+?)(?=\n\s*doi\s*:|\n\s*Financial support|\n\s*Received\b|\n\s*Accepted\b)/isu',
+            $textoPdf,
+            $m,
+        ) !== 1) {
+            return null;
+        }
+
+        $fragmento = trim($m[1]);
+
+        if ($fragmento === '' || preg_match('/^(doi\s*:|Financial support|Received\b|Accepted\b)/iu', $fragmento) === 1) {
+            return null;
+        }
+
+        // Layout moderno: o que vem após Key words JÁ é o início do corpo.
+        if ($this->posicaoAposAccepted($textoPdf) === null) {
+            return null;
+        }
+
+        return $fragmento;
+    }
+
+    /**
+     * No PDF das Memórias, citações frequentemente caem sozinhas na linha:
+     * "Paraguay.\n(8)\nMore..." → "Paraguay.(8) More..." (como no HTML do portal).
+     */
+    private function normalizarCitacoesDoPdf(string $texto): string
+    {
+        $texto = preg_replace(
+            '/([^\s(\[]|[.!?])\s*\R\((\d+(?:\s*,\s*\d+)*)\)\s*(?=\R|[A-ZÁÉÍÓÚÂÊÔÃÕ“"])/u',
+            '$1($2) ',
+            $texto,
+        ) ?? $texto;
+
+        $texto = preg_replace(
+            '/([^\s(\[])\s+\((\d+(?:\s*,\s*\d+)*)\)(?=\s|[.,;:!?])/u',
+            '$1($2)',
+            $texto,
+        ) ?? $texto;
+
+        return $texto;
     }
 
     private function removerCabecalhosDePagina(string $texto): string
@@ -498,8 +682,13 @@ class MontarArtigoLiteralDoPdf
             return false;
         }
 
-        if (preg_match('/^(ACKNOWLEDGEMENTS|AUTHORS(?:[’\'] CONTRIBUTION)?|REFERENCES|INTRODUCTION|METHODS|RESULTS|DISCUSSION|CONCLUSIONS?|In conclusion)\b/iu', $linha) === 1) {
+        if (preg_match('/^(ACKNOWLEDGEMENTS|AUTHORS(?:[’\'] CONTRIBUTION)?|REFERENCES|INTRODUCTION|METHODS|RESULTS|DISCUSSION|CONCLUSIONS?|BACKGROUND|OBJECTIVES?|FINDINGS|MAIN CONCLUSIONS?|In conclusion)\b/iu', $linha) === 1) {
             return true;
+        }
+
+        // Topônimos / nomes geográficos sozinhos não são seções no HTML do portal.
+        if (preg_match('/\b(Republic|Guiana|States|America|Brasil|Brazil|Argentina|Mexico|México|Chile|Peru|Colombia|Venezuela|Bolivia|Paraguay|Uruguay|France|Spain|Africa|Asia|Europe|Island|Province|State|City)\b/i', $linha) === 1) {
+            return false;
         }
 
         if (preg_match('/\b(have|has|had|been|being|was|were|are|is|can|will|would|could|should|their|there|these|those|which|while|where|when|what|as|despite|more|some|most|into|from|with|that|this|also|only|even)\b/i', $linha) === 1) {
@@ -520,7 +709,10 @@ class MontarArtigoLiteralDoPdf
             }
         }
 
-        return preg_match('/^[A-ZÀ-Ý]/u', $linha) === 1 && $stop <= 2;
+        // No HTML do portal, subtítulos curtos costumam trazer "until/after/species/vectors".
+        $pareceSubtituloPortal = preg_match('/\b(until|after|before|species|vectors|control|diagnosis|treatment|surveillance|challenges|strategies|overview)\b/i', $linha) === 1;
+
+        return preg_match('/^[A-ZÀ-Ý]/u', $linha) === 1 && $stop <= 2 && $pareceSubtituloPortal;
     }
 
     /**

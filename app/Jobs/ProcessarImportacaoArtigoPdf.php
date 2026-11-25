@@ -11,6 +11,8 @@ use App\Support\Artigos\EnriquecerHtmlLiteralDoPdf;
 use App\Support\Artigos\ExtrairImagensDoPdf;
 use App\Support\Artigos\ExtrairTextoPdf;
 use App\Support\Artigos\MontarArtigoLiteralDoPdf;
+use App\Support\Artigos\ObterHtmlOriginalDoArtigoPorDoi;
+use App\Support\Artigos\PreferirConteudoHtmlOriginal;
 use App\Support\Artigos\RefinarMetadadosExtracaoPdf;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -42,6 +44,8 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
         ExtrairImagensDoPdf $extrairImagens,
         FormatarConteudoRicoComGemini $formatarRico,
         EnriquecerHtmlLiteralDoPdf $enriquecerHtml,
+        ObterHtmlOriginalDoArtigoPorDoi $obterHtmlOriginal,
+        PreferirConteudoHtmlOriginal $preferirHtmlOriginal,
     ): void {
         $this->importacao->refresh();
 
@@ -95,6 +99,7 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
         }
 
         $extracao = $montarLiteral->montar($textoPdf, $metadados);
+        $extracao = $this->enriquecerCamposMetadadoHtml($extracao, $enriquecerHtml);
 
         $this->importacao->atualizarProgresso(65, 'Extraindo imagens do PDF...');
         $imagens = $extrairImagens->deCaminhoPublico($this->importacao->pdf_path);
@@ -108,6 +113,16 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
             $modelGemini,
             $formatarRico,
             $enriquecerHtml,
+        );
+
+        $this->importacao->atualizarProgresso(85, 'Buscando HTML original publicado (SciELO/Memórias)...');
+        $extracao = $this->preferirHtmlPublicadoSeCompativel(
+            $extracao,
+            $textoPdf,
+            $obterHtmlOriginal,
+            $preferirHtmlOriginal,
+            $enriquecerHtml,
+            $imagens,
         );
 
         $this->importacao->atualizarProgresso(90, 'Criando rascunho do artigo...');
@@ -148,10 +163,10 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
                     $htmlFinal = $enriquecerHtml->polir($htmlGemini, $imagens);
 
                     if (filled($rico['resumo_html'])) {
-                        $resumoTexto = trim(html_entity_decode(strip_tags($rico['resumo_html']), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                        $resumoHtml = $enriquecerHtml->polirCampoRico((string) $rico['resumo_html']);
 
-                        if ($resumoTexto !== '') {
-                            $extracao['resumo'] = $resumoTexto;
+                        if ($resumoHtml !== '') {
+                            $extracao['resumo'] = $resumoHtml;
                         }
                     }
                 }
@@ -201,6 +216,75 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
         };
 
         return $score($htmlGemini) >= max(12, (int) floor($score($htmlLocal) * 0.8));
+    }
+
+    /**
+     * @param  array<string, mixed>  $extracao
+     * @param  list<array{path: string, url: string, alt?: string}>  $imagens
+     * @return array<string, mixed>
+     */
+    private function preferirHtmlPublicadoSeCompativel(
+        array $extracao,
+        string $textoPdf,
+        ObterHtmlOriginalDoArtigoPorDoi $obterHtmlOriginal,
+        PreferirConteudoHtmlOriginal $preferirHtmlOriginal,
+        EnriquecerHtmlLiteralDoPdf $enriquecerHtml,
+        array $imagens,
+    ): array {
+        $doi = trim((string) ($extracao['doi'] ?? ''));
+
+        if ($doi === '') {
+            return $extracao;
+        }
+
+        try {
+            $htmlOriginal = $obterHtmlOriginal->obter($doi);
+
+            if ($htmlOriginal === null) {
+                return $extracao;
+            }
+
+            $mesclado = $preferirHtmlOriginal->preferir($extracao, $htmlOriginal, $textoPdf);
+
+            if (($mesclado['fonte_conteudo'] ?? null) === null) {
+                return $extracao;
+            }
+
+            // Garante imagens do PDF mesmo quando o corpo vem do HTML publicado.
+            $mesclado['conteudo_html'] = $enriquecerHtml->injetarImagensSeAusentes(
+                (string) ($mesclado['conteudo_html'] ?? ''),
+                $imagens,
+            );
+
+            return $this->enriquecerCamposMetadadoHtml($mesclado, $enriquecerHtml);
+        } catch (Throwable $exception) {
+            Log::warning('Não foi possível obter HTML original publicado; mantendo conteúdo do PDF.', [
+                'importacao_id' => $this->importacao->id,
+                'doi' => $doi,
+                'exception' => $exception->getMessage(),
+            ]);
+
+            return $extracao;
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $extracao
+     * @return array<string, mixed>
+     */
+    private function enriquecerCamposMetadadoHtml(array $extracao, EnriquecerHtmlLiteralDoPdf $enriquecerHtml): array
+    {
+        foreach (['resumo', 'endereco_instituicoes', 'autor_correspondente'] as $campo) {
+            $valor = trim((string) ($extracao[$campo] ?? ''));
+
+            if ($valor === '') {
+                continue;
+            }
+
+            $extracao[$campo] = $enriquecerHtml->polirCampoRico($valor);
+        }
+
+        return $extracao;
     }
 
     /**

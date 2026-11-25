@@ -129,9 +129,9 @@
                         x-ref="cropImagem"
                         :src="cropSrc"
                         alt=""
-                        class="absolute max-w-none select-none"
+                        class="absolute left-0 top-0 max-w-none select-none"
                         draggable="false"
-                        :style="estiloCropImg"
+                        :style="estiloCropImg()"
                         @load="ajustarCrop()"
                     >
                 </div>

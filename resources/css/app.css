@@ -59,6 +59,10 @@
     line-height: 1.6;
 }
 
+.editor-conteudo--compacto .ProseMirror {
+    min-height: inherit;
+}
+
 .editor-conteudo .ProseMirror > * + * {
     margin-top: 0.75rem;
 }
@@ -345,19 +349,76 @@
 }
 
 .conteudo-rico {
-    font-size: 1.0625rem;
-    line-height: 1.85;
+    font-size: 1.3125rem;
+    line-height: 2.05;
 }
 
+.conteudo-rico.prose :where(p),
 .conteudo-rico p {
-    margin: 1.15rem 0;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+    font-size: 1.3125rem;
+    line-height: 2.05;
     text-align: justify;
     hyphens: auto;
 }
 
-.conteudo-rico h2,
+.conteudo-rico.prose :where(li),
+.conteudo-rico li {
+    margin-top: 0.65rem;
+    margin-bottom: 0.65rem;
+    font-size: 1.3125rem;
+    line-height: 2;
+}
+
+.conteudo-rico.prose :where(h2),
+.conteudo-rico h2 {
+    margin-top: 3rem;
+    margin-bottom: 1.15rem;
+    font-size: 1.75rem;
+    line-height: 1.3;
+}
+
+.conteudo-rico.prose :where(h3),
 .conteudo-rico h3 {
-    margin: 2rem 0 0.85rem;
+    margin-top: 2.5rem;
+    margin-bottom: 1rem;
+    font-size: 1.4rem;
+    line-height: 1.35;
+}
+
+.conteudo-rico--resumo {
+    font-size: 1.375rem;
+    line-height: 1.75;
+}
+
+.conteudo-rico--resumo.prose :where(p),
+.conteudo-rico--resumo p {
+    margin-top: 1.1rem;
+    margin-bottom: 1.1rem;
+    font-size: 1.375rem;
+    line-height: 1.75;
+}
+
+/*
+ * HTML SciELO/Memórias traz classes Bootstrap (.row, .col-*, .table)
+ * que colidem com utilitários Tailwind (ex.: .table → display:table)
+ * e deixam figuras/tabelas comprimidas na leitura.
+ */
+.conteudo-rico .row,
+.conteudo-rico .row.table {
+    display: block;
+    width: 100%;
+    margin: 1.75rem 0;
+}
+
+.conteudo-rico [class*='col-'] {
+    display: block;
+    float: none;
+    width: 100% !important;
+    max-width: 100%;
+    padding: 0;
+    margin: 0 0 1rem;
 }
 
 .conteudo-rico em,

@@ -17,9 +17,13 @@ class BuscaController extends Controller
 
         $termo = trim((string) ($dados['q'] ?? ''));
         $buscou = $termo !== '';
+        $incluirRascunhos = $request->user()?->can('viewAny', Artigo::class) ?? false;
 
         $artigos = Artigo::query()
-            ->publicados()
+            ->when(
+                ! $incluirRascunhos,
+                static fn ($query) => $query->publicados(),
+            )
             ->when(
                 $buscou,
                 static fn ($query) => $query->buscar($termo),
@@ -29,7 +33,8 @@ class BuscaController extends Controller
                 'autores:id,artigo_id,nome,ordem',
                 'categorias:id,nome,slug',
             ])
-            ->latest('publicado_em')
+            ->orderByDesc('publicado_em')
+            ->orderByDesc('updated_at')
             ->paginate(12)
             ->withQueryString();
 
@@ -37,6 +42,7 @@ class BuscaController extends Controller
             'termo' => $termo,
             'artigos' => $artigos,
             'buscou' => $buscou,
+            'incluirRascunhos' => $incluirRascunhos,
         ]);
     }
 }
