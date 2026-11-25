@@ -7,31 +7,87 @@
 
     <div class="py-8">
         <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
-            <div class="rounded-lg border border-indigo-100 bg-indigo-50/60 p-6 shadow-sm sm:p-8">
-                <h3 class="text-base font-semibold text-gray-900">{{ __('Importar de PDF') }}</h3>
-                <p class="mt-1 text-sm text-gray-600">
-                    {{ __('Envie o PDF do artigo. A IA localiza os campos e o sistema monta um rascunho com texto literal do PDF (sem resumir o conteúdo), para você revisar.') }}
-                </p>
+            <div
+                class="rounded-lg border border-indigo-100 bg-indigo-50/60 p-6 shadow-sm sm:p-8"
+                x-data="{
+                    nomeArquivo: '',
+                    tamanhoArquivo: '',
+                    enviando: false,
+                    atualizarArquivo(evento) {
+                        const arquivo = evento.target.files?.[0] ?? null;
+                        if (! arquivo || this.enviando) {
+                            if (! arquivo) {
+                                this.nomeArquivo = '';
+                                this.tamanhoArquivo = '';
+                            }
+                            return;
+                        }
 
-                <form method="POST" action="{{ route('artigos.importar-pdf') }}" enctype="multipart/form-data" class="mt-4 space-y-4">
+                        this.nomeArquivo = arquivo.name;
+                        const mb = arquivo.size / (1024 * 1024);
+                        this.tamanhoArquivo = mb >= 1
+                            ? mb.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' MB'
+                            : Math.max(1, Math.round(arquivo.size / 1024)) + ' KB';
+                        this.enviando = true;
+                        this.$nextTick(() => this.$refs.formularioImportacaoPdf.submit());
+                    },
+                }"
+            >
+                <h3 class="text-base font-semibold text-gray-900">{{ __('Importar de PDF com IA') }}</h3>
+
+                <form
+                    x-ref="formularioImportacaoPdf"
+                    method="POST"
+                    action="{{ route('artigos.importar-pdf') }}"
+                    enctype="multipart/form-data"
+                    class="mt-5 space-y-3"
+                >
                     @csrf
 
                     <div>
-                        <x-input-label for="pdf" :value="__('Arquivo PDF')" />
                         <input
                             id="pdf"
                             name="pdf"
                             type="file"
                             accept="application/pdf,.pdf"
                             required
-                            class="mt-1 block w-full text-sm text-gray-700 file:mr-4 file:rounded-md file:border-0 file:bg-indigo-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-indigo-500"
+                            class="sr-only"
+                            :disabled="enviando"
+                            @change="atualizarArquivo($event)"
                         >
+                        <label
+                            for="pdf"
+                            class="mt-4 flex items-center gap-4 rounded-lg border border-dashed border-indigo-200 bg-white/80 px-4 py-4 transition"
+                            :class="enviando ? 'cursor-wait opacity-80' : 'cursor-pointer hover:border-indigo-400 hover:bg-white'"
+                        >
+                            <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-indigo-600 text-white">
+                                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path d="M4.75 2A1.75 1.75 0 0 0 3 3.75v12.5c0 .966.784 1.75 1.75 1.75h10.5A1.75 1.75 0 0 0 17 16.25V8.414a1.75 1.75 0 0 0-.513-1.238L11.824 2.513A1.75 1.75 0 0 0 10.586 2H4.75Z" />
+                                    <path d="M11 2.75V6.5a.75.75 0 0 0 .75.75h3.75" class="opacity-40" />
+                                </svg>
+                            </span>
+                            <span class="min-w-0 flex-1">
+                                <span class="block text-sm font-semibold text-gray-900">
+                                    <span x-show="!nomeArquivo">{{ __('Selecionar arquivo PDF') }}</span>
+                                    <span x-show="nomeArquivo" x-cloak x-text="nomeArquivo" class="truncate"></span>
+                                </span>
+                                <span class="mt-0.5 block text-xs text-gray-500">
+                                    <span x-show="!nomeArquivo && !enviando">{{ __('Nenhum arquivo selecionado · PDF de até 20 MB · a importação inicia automaticamente') }}</span>
+                                    <span x-show="nomeArquivo && !enviando" x-cloak>
+                                        <span x-text="tamanhoArquivo"></span> · {{ __('Iniciando importação…') }}
+                                    </span>
+                                    <span x-show="enviando" x-cloak>
+                                        <span x-text="tamanhoArquivo"></span> · {{ __('Enviando arquivo…') }}
+                                    </span>
+                                </span>
+                            </span>
+                            <span
+                                class="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold ring-1 ring-inset"
+                                :class="enviando ? 'bg-indigo-100 text-indigo-800 ring-indigo-200' : 'bg-indigo-50 text-indigo-700 ring-indigo-100'"
+                                x-text="enviando ? '{{ __('Enviando…') }}' : '{{ __('Escolher') }}'"
+                            ></span>
+                        </label>
                         <x-input-error class="mt-2" :messages="$errors->get('pdf')" />
-                        <p class="mt-1 text-xs text-gray-500">{{ __('Máximo 20 MB.') }}</p>
-                    </div>
-
-                    <div class="flex justify-end">
-                        <x-primary-button>{{ __('Importar PDF') }}</x-primary-button>
                     </div>
                 </form>
             </div>
