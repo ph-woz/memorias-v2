@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+if [[ ! -f compose.yaml && ! -f docker-compose.yml ]]; then
+  echo 'post-merge: compose.yaml não encontrado; abortando deploy.' >&2
+  exit 1
+fi
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo 'post-merge: docker não encontrado; abortando deploy.' >&2
+  exit 1
+fi
+
+echo '==> composer install'
+docker compose exec -T laravel.test composer install --no-interaction --prefer-dist --optimize-autoloader
+
+echo '==> npm build'
+if docker compose exec -T laravel.test test -f package-lock.json; then
+  docker compose exec -T laravel.test npm ci --no-fund --no-audit
+else
+  docker compose exec -T laravel.test npm install --no-fund --no-audit
+fi
+docker compose exec -T laravel.test npm run build
+
+echo '==> migrate'
+docker compose exec -T laravel.test php artisan migrate --force --no-interaction
+
+echo '==> caches'
+docker compose exec -T laravel.test php artisan view:clear
+docker compose exec -T laravel.test php artisan config:cache
+docker compose exec -T laravel.test php artisan route:cache
+
+echo '==> reload'
+docker compose exec -T laravel.test php artisan octane:reload \
+  || docker compose restart laravel.test
+docker compose restart horizon || true
+
+echo '==> deploy concluído'
