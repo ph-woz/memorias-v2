@@ -52,13 +52,14 @@
                             accept="application/pdf,.pdf"
                             required
                             class="sr-only"
-                            :disabled="enviando"
                             @change="atualizarArquivo($event)"
                         >
+                        {{-- Não usar :disabled no input: campos disabled não entram no submit e geram "PDF field is required". --}}
                         <label
                             for="pdf"
                             class="mt-4 flex items-center gap-4 rounded-lg border border-dashed border-indigo-200 bg-white/80 px-4 py-4 transition"
-                            :class="enviando ? 'cursor-wait opacity-80' : 'cursor-pointer hover:border-indigo-400 hover:bg-white'"
+                            :class="enviando ? 'pointer-events-none cursor-wait opacity-80' : 'cursor-pointer hover:border-indigo-400 hover:bg-white'"
+                            @click="if (enviando) { $event.preventDefault() }"
                         >
                             <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-indigo-600 text-white">
                                 <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">

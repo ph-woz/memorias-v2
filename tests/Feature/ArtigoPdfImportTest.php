@@ -54,6 +54,19 @@ class ArtigoPdfImportTest extends TestCase
         });
     }
 
+    public function test_importacao_sem_pdf_retorna_erro_em_portugues(): void
+    {
+        $usuario = User::factory()->create();
+
+        $this->actingAs($usuario)
+            ->from(route('artigos.create'))
+            ->post(route('artigos.importar-pdf'), [])
+            ->assertRedirect(route('artigos.create'))
+            ->assertSessionHasErrors([
+                'pdf' => 'Selecione um arquivo PDF para importar.',
+            ]);
+    }
+
     public function test_job_usa_heuristicas_quando_ia_falha(): void
     {
         Storage::fake('public');

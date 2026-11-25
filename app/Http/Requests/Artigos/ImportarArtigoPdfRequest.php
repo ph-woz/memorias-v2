@@ -32,4 +32,17 @@ class ImportarArtigoPdfRequest extends FormRequest
             'pdf' => 'PDF',
         ];
     }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'pdf.required' => __('Selecione um arquivo PDF para importar.'),
+            'pdf.file' => __('O arquivo enviado é inválido.'),
+            'pdf.mimes' => __('O arquivo deve ser um PDF.'),
+            'pdf.max' => __('O PDF deve ter no máximo 20 MB.'),
+        ];
+    }
 }
