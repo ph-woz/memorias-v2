@@ -22,9 +22,10 @@
     ];
 @endphp
 
+<script type="application/json" id="categoria-formulario-estado">@json($estadoInicial)</script>
 <div
     class="space-y-6"
-    x-data="categoriaFormulario(@js($estadoInicial))"
+    x-data="categoriaFormulario('categoria-formulario-estado')"
 >
     <div class="border-b border-gray-200">
         <nav class="-mb-px flex flex-wrap gap-x-6 gap-y-1" aria-label="{{ __('Abas da categoria') }}">

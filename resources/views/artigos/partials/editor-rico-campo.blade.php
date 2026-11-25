@@ -10,14 +10,19 @@
     $id = $id ?? $name;
 @endphp
 
+@php
+    $estadoEditorRico = [
+        'campo' => $name,
+        'html' => $html,
+        'placeholder' => $placeholder,
+        'minHeight' => $minHeight,
+    ];
+    $estadoEditorRicoId = 'editor-rico-estado-'.$id;
+@endphp
+<script type="application/json" id="{{ $estadoEditorRicoId }}">@json($estadoEditorRico)</script>
 <div
     class="mt-1"
-    x-data="editorRicoCampo({
-        campo: @js($name),
-        html: @js($html),
-        placeholder: @js($placeholder),
-        minHeight: @js($minHeight),
-    })"
+    x-data="editorRicoCampo(@js($estadoEditorRicoId))"
 >
     <input type="hidden" name="{{ $name }}" id="{{ $id }}" :value="html">
 

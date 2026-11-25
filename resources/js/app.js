@@ -24,6 +24,18 @@ import { RichImage } from './editor/rich-image';
 window.Alpine = Alpine;
 
 document.addEventListener('alpine:init', () => {
+    const novoId = () => {
+        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+            try {
+                return crypto.randomUUID();
+            } catch (e) {
+                // HTTP fora de localhost: randomUUID exige secure context.
+            }
+        }
+
+        return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    };
+
     const slugFormulario = (estadoInicial = {}) => ({
         nome: estadoInicial.nome ?? '',
         slug: estadoInicial.slug ?? '',
@@ -358,20 +370,39 @@ document.addEventListener('alpine:init', () => {
         },
     });
 
-    Alpine.data('categoriaFormulario', (estadoInicial = {}) => ({
-        ...slugFormulario(estadoInicial),
-        ...fotoCropFormulario({
-            ...estadoInicial,
-            nomeArquivoCrop: 'foto-categoria.webp',
-        }),
-        aba: estadoInicial.aba ?? 'principal',
-        seoTitulo: estadoInicial.seoTitulo ?? '',
-        seoDescricao: estadoInicial.seoDescricao ?? '',
-    }));
+
+    const estadoDeScriptJson = (estadoOuId = {}) => {
+        if (typeof estadoOuId === 'string') {
+            const el = document.getElementById(estadoOuId);
+
+            if (! el) {
+                return {};
+            }
+
+            return JSON.parse(el.textContent || '{}');
+        }
+
+        return estadoOuId && typeof estadoOuId === 'object' ? estadoOuId : {};
+    };
+
+    Alpine.data('categoriaFormulario', (estadoOuId = {}) => {
+        const estadoInicial = estadoDeScriptJson(estadoOuId);
+
+        return {
+            ...slugFormulario(estadoInicial),
+            ...fotoCropFormulario({
+                ...estadoInicial,
+                nomeArquivoCrop: 'foto-categoria.webp',
+            }),
+            aba: estadoInicial.aba ?? 'principal',
+            seoTitulo: estadoInicial.seoTitulo ?? '',
+            seoDescricao: estadoInicial.seoDescricao ?? '',
+        };
+    });
 
     Alpine.data('menuItemFormulario', (estadoInicial = {}) => ({
         links: [...(estadoInicial.links ?? [])].map((link) => ({
-            key: crypto.randomUUID(),
+            key: novoId(),
             id: link.id ?? null,
             rotulo: String(link.rotulo ?? ''),
             url: String(link.url ?? ''),
@@ -379,7 +410,7 @@ document.addEventListener('alpine:init', () => {
         })),
         adicionarLink() {
             this.links.push({
-                key: crypto.randomUUID(),
+                key: novoId(),
                 id: null,
                 rotulo: '',
                 url: '',
@@ -409,7 +440,7 @@ document.addEventListener('alpine:init', () => {
         seoTitulo: estadoInicial.seoTitulo ?? '',
         seoDescricao: estadoInicial.seoDescricao ?? '',
         autores: [...(estadoInicial.autores ?? [])].map((nome) => ({
-            id: crypto.randomUUID(),
+            id: novoId(),
             nome: String(nome ?? ''),
         })),
         novoAutor: '',
@@ -433,13 +464,13 @@ document.addEventListener('alpine:init', () => {
         mostrarSugestoesEtiquetas: false,
         indiceSugestaoEtiqueta: 0,
         referencias: [...(estadoInicial.referencias ?? [])].map((texto) => ({
-            id: crypto.randomUUID(),
+            id: novoId(),
             texto: String(texto ?? ''),
         })),
         novaReferencia: '',
         arrastandoReferenciaIndice: null,
         documentos: [...(estadoInicial.documentos ?? [])].map((documento) => ({
-            clientId: crypto.randomUUID(),
+            clientId: novoId(),
             id: documento.id ?? null,
             titulo: String(documento.titulo ?? ''),
             tipo: documento.tipo === 'url' || (documento.url && ! documento.arquivoNome) ? 'url' : 'arquivo',
@@ -1331,7 +1362,7 @@ document.addEventListener('alpine:init', () => {
             }
 
             this.autores.push({
-                id: crypto.randomUUID(),
+                id: novoId(),
                 nome,
             });
             this.novoAutor = '';
@@ -1763,7 +1794,7 @@ document.addEventListener('alpine:init', () => {
             }
 
             this.referencias.push({
-                id: crypto.randomUUID(),
+                id: novoId(),
                 texto,
             });
             this.novaReferencia = '';
@@ -1806,7 +1837,7 @@ document.addEventListener('alpine:init', () => {
 
         adicionarDocumento() {
             this.documentos.push({
-                clientId: crypto.randomUUID(),
+                clientId: novoId(),
                 id: null,
                 titulo: '',
                 tipo: 'arquivo',
@@ -1881,9 +1912,10 @@ document.addEventListener('alpine:init', () => {
         };
     };
 
-    Alpine.data('artigoFormulario', criarArtigoFormulario);
+    Alpine.data('artigoFormulario', (estadoOuId = {}) => criarArtigoFormulario(estadoDeScriptJson(estadoOuId)));
 
-    Alpine.data('paginaFormulario', (estadoInicial = {}) => {
+    Alpine.data('paginaFormulario', (estadoOuId = {}) => {
+        const estadoInicial = estadoDeScriptJson(estadoOuId);
         const form = criarArtigoFormulario({
             titulo: estadoInicial.titulo ?? '',
             nome: estadoInicial.titulo ?? estadoInicial.nome ?? '',
@@ -2201,7 +2233,8 @@ document.addEventListener('alpine:init', () => {
         store.abrir(alvo.getAttribute('data-refs') || '');
     });
 
-    Alpine.data('editorRicoCampo', (estadoInicial = {}) => {
+    Alpine.data('editorRicoCampo', (estadoOuId = {}) => {
+        const estadoInicial = estadoDeScriptJson(estadoOuId);
         /** @type {import('@tiptap/core').Editor | null} */
         let instancia = null;
 

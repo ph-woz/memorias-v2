@@ -113,9 +113,12 @@
     ];
 @endphp
 
+{{-- Estado em <script type="application/json">: o HTML do conteúdo é grande demais
+     para caber com segurança em atributo x-data (quebra o Alpine no servidor). --}}
+<script type="application/json" id="artigo-formulario-estado">@json($estadoInicial)</script>
 <div
     class="space-y-6"
-    x-data="artigoFormulario(@js($estadoInicial))"
+    x-data="artigoFormulario('artigo-formulario-estado')"
 >
     <div class="border-b border-gray-200">
         <nav class="-mb-px flex flex-wrap gap-x-6 gap-y-1" aria-label="{{ __('Abas do artigo') }}">

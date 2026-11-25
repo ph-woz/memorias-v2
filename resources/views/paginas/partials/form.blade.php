@@ -23,9 +23,10 @@
     ];
 @endphp
 
+<script type="application/json" id="pagina-formulario-estado">@json($estadoInicial)</script>
 <div
     class="space-y-6"
-    x-data="paginaFormulario(@js($estadoInicial))"
+    x-data="paginaFormulario('pagina-formulario-estado')"
 >
     <div class="border-b border-gray-200">
         <nav class="-mb-px flex flex-wrap gap-x-6 gap-y-1" aria-label="{{ __('Abas da página') }}">
