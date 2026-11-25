@@ -15,7 +15,7 @@
     use App\Enums\PosicaoHorizontal;
     use App\Enums\PosicaoVertical;
 
-    $altura = $compact ? 'min-h-[280px] sm:min-h-[340px]' : 'min-h-[100svh]';
+    $altura = $compact ? 'min-h-[280px] sm:min-h-[340px]' : 'min-h-[75svh]';
     $opacidade = max(0, min(100, (int) $overlayOpacidade)) / 100;
 @endphp
 

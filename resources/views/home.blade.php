@@ -10,7 +10,7 @@
 
 @section('content')
     @if ($banners->isEmpty())
-        <section class="relative flex min-h-[100svh] items-end overflow-hidden bg-ink px-5 pb-20 pt-32 text-white sm:px-8 lg:px-10">
+        <section class="relative flex min-h-[75svh] items-end overflow-hidden bg-ink px-5 pb-20 pt-32 text-white sm:px-8 lg:px-10">
             <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(45,212,191,0.18),transparent_50%),linear-gradient(160deg,#071512_0%,#14302a_55%,#0c2923_100%)]"></div>
             <div class="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-ink to-transparent"></div>
             <div class="relative mx-auto w-full max-w-site animate-fade-up">
@@ -30,11 +30,11 @@
     @else
         <div
             x-data="bannerCarousel({{ $banners->count() }})"
-            class="relative min-h-[100svh]"
+            class="relative min-h-[75svh]"
             @mouseenter="pararAutoplay()"
             @mouseleave="iniciarAutoplay()"
         >
-            <div class="relative min-h-[100svh]">
+            <div class="relative min-h-[75svh]">
                 @foreach ($banners as $indice => $banner)
                     <div
                         class="absolute inset-0 transition-opacity duration-700 ease-editorial"
