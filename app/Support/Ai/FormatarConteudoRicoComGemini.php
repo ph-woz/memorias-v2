@@ -169,7 +169,7 @@ REGRAS ABSOLUTAS:
 3. Estruture com MUITOS <p> curtos (ideal 2–5 frases cada), como os blocos visuais do PDF. Nunca um único bloco/parágrafo gigante.
 4. Nomes científicos / espécies em <em>…</em> (ex.: <em>Triatoma infestans</em>).
 5. Títulos de seção do PDF em <h2>…</h2>.
-6. Citações no texto como <sup>(2)</sup> ou <sup>(3, 4, 5)</sup>.
+6. Citações no texto SOMENTE como <sup>(2)</sup> ou <sup>(3, 4, 5)</sup> — só os números da referência. NUNCA coloque anos, volumes, páginas nem texto bibliográfico dentro do <sup>.
 7. Negritos do PDF em <strong>.
 8. Figuras/tabelas: use as URLs listadas abaixo com <p style="text-align:center"><img src="URL" alt="…"></p> no ponto do PDF em que aparecem.
 9. Não inclua cabeçalho da revista, autores, abstract, key words nem REFERENCES no conteudo_html.

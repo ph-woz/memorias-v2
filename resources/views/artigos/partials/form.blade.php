@@ -927,7 +927,7 @@
         <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
             <p class="text-xs font-medium uppercase tracking-wide text-gray-500">{{ __('Prévia no Google') }}</p>
             <p class="mt-2 truncate text-lg text-[#1a0dab]" x-text="seoTitulo || titulo || @js(__('Título do artigo'))"></p>
-            <p class="truncate text-sm text-[#006621]" x-text="`{{ url('/artigo') }}/${slug || 'slug'}`"></p>
+            <p class="truncate text-sm text-[#006621]" x-text="`{{ \Illuminate\Support\Str::beforeLast(route('site.artigos.show', ['artigo' => '__SLUG__']), '/__SLUG__') }}/${slug || 'slug'}`"></p>
             <p class="mt-1 line-clamp-2 text-sm text-gray-600" x-text="seoDescricao || @js(__('A descrição SEO aparece aqui.'))"></p>
         </div>
     </div>

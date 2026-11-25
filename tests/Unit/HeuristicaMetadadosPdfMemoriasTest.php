@@ -49,10 +49,41 @@ TXT;
         $this->assertContains('Carolina Dale', $resultado['autores']);
         $this->assertContains('American Trypanosomiasis', $resultado['palavras_chave']);
         $this->assertStringStartsWith('Chagas disease persists', $resultado['resumo']);
-        $this->assertStringContainsString('jcosta@ioc.fiocruz.br', (string) $resultado['autor_correspondente']);
+        $correspondente = (string) $resultado['autor_correspondente'];
+        $this->assertStringStartsWith('Financial support:', $correspondente);
+        $this->assertStringContainsString('jcosta@ioc.fiocruz.br', $correspondente);
+        $this->assertStringContainsString('https://orcid.org/0000-0001-6664-1394', $correspondente);
+        $this->assertStringContainsString('Received 14 January 2021', $correspondente);
+        $this->assertStringContainsString('Accepted 04 May 2021', $correspondente);
         $this->assertStringContainsString('Fundação Oswaldo Cruz-Fiocruz', (string) $resultado['endereco_instituicoes']);
         $this->assertStringContainsString('Despite the great achievements', $resultado['marcador_inicio_corpo']);
         $this->assertSame('REFERENCES', $resultado['marcador_inicio_referencias']);
+    }
+
+    public function test_substitui_email_isolado_pelo_bloco_editorial_completo(): void
+    {
+        $texto = <<<'TXT'
+doi: 10.1590/0074-02760210015
+Financial support: CNPq, FAPESP (process no. 2016/08176-9), FAPERJ.
+JC, CEA and CG are CNPq Research Productivity Granted - PQ-2 (303363/2017-7, 306357/2019-4, and 305182/2019-6).
++ Corresponding author: jcosta@ioc.fiocruz.br
+https://orcid.org/0000-0001-6664-1394
+Received 14 January 2021
+Accepted 04 May 2021
+Despite the great achievements in controlling Chagas disease.
+TXT;
+
+        $resultado = (new HeuristicaMetadadosPdfMemorias)->completar($texto, [
+            'autor_correspondente' => 'jcosta@ioc.fiocruz.br',
+        ]);
+
+        $correspondente = (string) $resultado['autor_correspondente'];
+        $this->assertStringContainsString('Financial support: CNPq, FAPESP (process no. 2016/08176-9), FAPERJ.', $correspondente);
+        $this->assertStringContainsString('PQ-2 (303363/2017-7, 306357/2019-4, and 305182/2019-6)', $correspondente);
+        $this->assertStringContainsString('+ Corresponding author: jcosta@ioc.fiocruz.br', $correspondente);
+        $this->assertStringContainsString('https://orcid.org/0000-0001-6664-1394', $correspondente);
+        $this->assertStringContainsString('Received 14 January 2021', $correspondente);
+        $this->assertStringContainsString('Accepted 04 May 2021', $correspondente);
     }
 
     public function test_completa_abstract_estruturado_e_corpo_apos_key_words(): void

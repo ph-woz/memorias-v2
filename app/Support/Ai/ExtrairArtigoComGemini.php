@@ -52,6 +52,7 @@ class ExtrairArtigoComGemini
             ."\nNão devolva o corpo do artigo."
             ."\nNão resuma o resumo/abstract."
             ."\nCopie titulo, doi, autores, resumo e marcadores exatamente como no texto."
+            ."\nEm autor_correspondente, copie o bloco COMPLETO de Financial support até Accepted (nunca só o e-mail)."
             ."\n\nTEXTO DO PDF:\n".Str::limit($texto, 80000, '');
     }
 

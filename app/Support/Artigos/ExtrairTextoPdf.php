@@ -27,7 +27,7 @@ class ExtrairTextoPdf
             return '';
         }
 
-        $texto = str_replace("\0", '', $texto);
+        $texto = (new SanitizarTextoUtf8)->sanitizar($texto);
         $texto = preg_replace("/[ \t]+/u", ' ', $texto) ?? $texto;
         // Une hifenização tipográfica de fim de linha do PDF: "Cha-\ngas" → "Chagas".
         $texto = preg_replace('/(\p{L})-\R(\p{Ll})/u', '$1$2', $texto) ?? $texto;

@@ -27,8 +27,8 @@ class MontarArtigoLiteralDoPdfTest extends TestCase
         $this->assertStringContainsString('Continua o paragrafo original, sem mudancas.', $resultado['conteudo_html']);
         $this->assertStringNotContainsString('REFERENCES', $resultado['conteudo_html']);
         $this->assertSame([
-            '1. Autor A. Titulo. 2020.',
-            '2. Autor B. Outro titulo. 2021.',
+            'Autor A. Titulo. 2020.',
+            'Autor B. Outro titulo. 2021.',
         ], $resultado['referencias']);
     }
 

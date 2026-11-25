@@ -357,14 +357,17 @@ class EnriquecerHtmlLiteralDoPdf
     {
         // Evita remarcar o que já está em <sup>.
         if (str_contains($textoEscapado, '<sup')) {
-            return $textoEscapado;
+            return (new NormalizarCitacoesNoHtml)->normalizar($textoEscapado);
         }
 
-        return (string) preg_replace(
-            '/\((\d+(?:\s*,\s*\d+)*)\)/u',
+        // Só marca listas de citação (1–3 dígitos). Não captura anos tipo (1859).
+        $marcado = (string) preg_replace(
+            '/\((\d{1,3}(?:\s*,\s*\d{1,3})*)\)/u',
             '<sup>($1)</sup>',
             $textoEscapado,
         );
+
+        return (new NormalizarCitacoesNoHtml)->normalizar($marcado);
     }
 
     private function marcarEspeciesEmTexto(string $textoEscapado): string

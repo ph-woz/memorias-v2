@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\StatusArtigo;
+use App\Support\Artigos\NormalizarTextoReferencia;
 use Database\Factories\ArtigoFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -211,11 +212,18 @@ class Artigo extends Model
      */
     public function sincronizarReferencias(array $referencias): void
     {
+        $normalizar = app(NormalizarTextoReferencia::class);
         $this->referencias()->delete();
 
         foreach ($referencias as $ordem => $texto) {
+            $limpo = $normalizar->normalizar((string) $texto);
+
+            if ($limpo === '') {
+                continue;
+            }
+
             $this->referencias()->create([
-                'texto' => $texto,
+                'texto' => $limpo,
                 'ordem' => $ordem,
             ]);
         }

@@ -132,8 +132,7 @@ class ExtrairArtigoRicoDoHtmlScielo
 
         if (preg_match_all('/<(?:p|li)\b[^>]*>(.*?)<\/(?:p|li)>/is', $html, $m) > 0) {
             foreach ($m[1] as $item) {
-                $texto = trim(html_entity_decode(strip_tags($item), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-                $texto = preg_replace('/\s+/u', ' ', $texto) ?? $texto;
+                $texto = (new NormalizarTextoReferencia)->normalizar($item);
 
                 if ($texto === '' || preg_match('/^REFERENCES$/iu', $texto) === 1) {
                     continue;
@@ -218,20 +217,8 @@ class ExtrairArtigoRicoDoHtmlScielo
         $html = preg_replace('/<i\b([^>]*)>/i', '<em$1>', $html) ?? $html;
         $html = preg_replace('/<\/i>/i', '</em>', $html) ?? $html;
 
-        // Citações SciELO: <sup><a class="xref">1</a></sup> → <sup>(1)</sup>
-        $html = preg_replace_callback(
-            '/<sup\b[^>]*>(.*?)<\/sup>/is',
-            static function (array $m): string {
-                preg_match_all('/\d+/', $m[1], $nums);
-
-                if ($nums[0] === []) {
-                    return $m[0];
-                }
-
-                return '<sup>('.implode(', ', array_unique($nums[0])).')</sup>';
-            },
-            $html,
-        ) ?? $html;
+        // Citações SciELO: <sup><a class="xref">1</a></sup> → <sup>(1)</sup> (sem anos/páginas).
+        $html = (new NormalizarCitacoesNoHtml)->normalizar($html);
 
         // Remove âncoras vazias e scripts/estilos residuais.
         $html = preg_replace('/<(script|style)\b[^>]*>.*?<\/\1>/is', '', $html) ?? $html;

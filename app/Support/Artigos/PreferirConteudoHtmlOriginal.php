@@ -15,14 +15,19 @@ class PreferirConteudoHtmlOriginal
      */
     public function preferir(array $extracaoPdf, array $extracaoHtml, string $textoPdf): array
     {
+        $mesclado = $extracaoPdf;
+
+        // Metadados editoriais (autor correspondente, instituições) podem vir do HTML
+        // mesmo quando o corpo só existe no PDF.
+        $this->mesclarCamposMetadado($mesclado, $extracaoHtml, $textoPdf);
+
         $htmlCorpo = trim((string) ($extracaoHtml['conteudo_html'] ?? ''));
         $pdfCorpo = trim((string) ($extracaoPdf['conteudo_html'] ?? ''));
 
         if ($htmlCorpo === '' || ! $this->corpoHtmlCompativelComPdf($htmlCorpo, $textoPdf, $pdfCorpo)) {
-            return $extracaoPdf;
+            return $mesclado;
         }
 
-        $mesclado = $extracaoPdf;
         $mesclado['conteudo_html'] = $htmlCorpo;
         $mesclado['fonte_conteudo'] = (string) ($extracaoHtml['fonte'] ?? 'html_original');
         $mesclado['html_origem_url'] = $extracaoHtml['html_origem_url'] ?? null;
@@ -30,14 +35,6 @@ class PreferirConteudoHtmlOriginal
         $resumoHtml = trim((string) ($extracaoHtml['resumo'] ?? ''));
         if ($resumoHtml !== '' && $this->trechoExisteNoPdf($resumoHtml, $textoPdf)) {
             $mesclado['resumo'] = $resumoHtml;
-        }
-
-        foreach (['endereco_instituicoes', 'autor_correspondente'] as $campo) {
-            $htmlCampo = trim((string) ($extracaoHtml[$campo] ?? ''));
-
-            if ($htmlCampo !== '' && $this->trechoExisteNoPdf($htmlCampo, $textoPdf)) {
-                $mesclado[$campo] = $htmlCampo;
-            }
         }
 
         $refs = $extracaoHtml['referencias'] ?? null;
@@ -51,6 +48,46 @@ class PreferirConteudoHtmlOriginal
         }
 
         return $mesclado;
+    }
+
+    /**
+     * @param  array<string, mixed>  $mesclado
+     * @param  array<string, mixed>  $extracaoHtml
+     */
+    private function mesclarCamposMetadado(array &$mesclado, array $extracaoHtml, string $textoPdf): void
+    {
+        foreach (['endereco_instituicoes', 'autor_correspondente'] as $campo) {
+            $htmlCampo = trim((string) ($extracaoHtml[$campo] ?? ''));
+
+            if ($htmlCampo === '' || ! $this->trechoExisteNoPdf($htmlCampo, $textoPdf)) {
+                continue;
+            }
+
+            $atual = trim((string) ($mesclado[$campo] ?? ''));
+
+            if ($campo === 'autor_correspondente' && $atual !== '' && ! $this->blocoCorrespondenteMaisCompleto($htmlCampo, $atual)) {
+                continue;
+            }
+
+            $mesclado[$campo] = $htmlCampo;
+        }
+    }
+
+    private function blocoCorrespondenteMaisCompleto(string $candidato, string $atual): bool
+    {
+        $candidatoPlano = $this->normalizar($candidato);
+        $atualPlano = $this->normalizar($atual);
+
+        $candidatoCompleto = preg_match('/Financial support/iu', $candidatoPlano) === 1
+            && preg_match('/Accepted\s+\d/iu', $candidatoPlano) === 1;
+        $atualCompleto = preg_match('/Financial support/iu', $atualPlano) === 1
+            && preg_match('/Accepted\s+\d/iu', $atualPlano) === 1;
+
+        if ($candidatoCompleto && ! $atualCompleto) {
+            return true;
+        }
+
+        return mb_strlen($candidatoPlano) > mb_strlen($atualPlano) + 20;
     }
 
     private function corpoHtmlCompativelComPdf(string $htmlCorpo, string $textoPdf, string $pdfCorpoHtml): bool
@@ -114,6 +151,19 @@ class PreferirConteudoHtmlOriginal
             if ($meio !== '' && mb_stripos($pdf, $meio) !== false) {
                 return true;
             }
+        }
+
+        // Bloco correspondente: amostra pelo e-mail + ORCID/Accepted quando o início diverge.
+        if (
+            preg_match('/[^\s<>]+@[^\s<>]+\.[^\s<>]+/u', $trecho, $email) === 1
+            && mb_stripos($pdf, $email[0]) !== false
+            && (
+                preg_match('/Financial support/iu', $trecho) === 1
+                || preg_match('/orcid\.org/iu', $trecho) === 1
+                || preg_match('/Accepted\s+\d/iu', $trecho) === 1
+            )
+        ) {
+            return true;
         }
 
         return false;

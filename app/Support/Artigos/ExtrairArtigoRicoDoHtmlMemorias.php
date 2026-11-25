@@ -31,7 +31,12 @@ class ExtrairArtigoRicoDoHtmlMemorias
         $instituicoesNode = $xpath->query('//div[contains(@class,"institutions")]')->item(0);
         $abstractNode = $xpath->query('//*[@id="textabstract"]')->item(0);
         $doiNode = $xpath->query('//span[contains(@class,"doi")]')->item(0);
-        $correspondenteNode = $xpath->query('//*[contains(text(),"Corresponding author")]/ancestor::p[1]')->item(0)
+        // Bloco editorial completo (#author-reference): Financial support → ORCID → Accepted.
+        $correspondenteNode = $xpath->query(
+            '//div[contains(concat(" ", normalize-space(@class), " "), " author-reference ")]/p[1]'
+        )->item(0)
+            ?? $xpath->query('//p[contains(.,"Financial support") and contains(.,"Corresponding author")]')->item(0)
+            ?? $xpath->query('//p[contains(.,"Corresponding author") and (contains(.,"Received") or contains(.,"Accepted") or contains(.,"orcid.org"))]')->item(0)
             ?? $xpath->query('//p[contains(.,"Corresponding author")]')->item(0);
 
         $corpoHtml = $this->extrairCorpo($xpath);
@@ -161,13 +166,11 @@ class ExtrairArtigoRicoDoHtmlMemorias
                 continue;
             }
 
-            $numero = '';
             $numberNode = null;
 
             foreach ($node->getElementsByTagName('span') as $span) {
                 if (str_contains($span->getAttribute('class'), 'number')) {
                     $numberNode = $span;
-                    $numero = trim($span->textContent);
                     break;
                 }
             }
@@ -189,14 +192,13 @@ class ExtrairArtigoRicoDoHtmlMemorias
                 }
             }
 
-            $texto = trim(html_entity_decode(strip_tags($this->innerHtml($clone)), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-            $texto = preg_replace('/\s+/u', ' ', $texto) ?? $texto;
+            $texto = (new NormalizarTextoReferencia)->normalizar($this->innerHtml($clone));
 
             if ($texto === '' || preg_match('/^REFERENCES$/iu', $texto) === 1) {
                 continue;
             }
 
-            $refs[] = trim($numero.' '.$texto);
+            $refs[] = $texto;
         }
 
         return $refs;
@@ -291,36 +293,9 @@ class ExtrairArtigoRicoDoHtmlMemorias
     {
         $html = preg_replace('/\s+/u', ' ', $html) ?? $html;
         $html = preg_replace('/>\s+</u', '><', $html) ?? $html;
-        // Normaliza citações para <sup>(n)</sup> consumível pelo VinculaCitacoesNoConteudo.
-        $html = preg_replace(
-            '/<sup>\(?(?:<a[^>]*class="click-reference"[^>]*>)?(\d+)(?:<\/a>)?(?:\s*,\s*(?:<a[^>]*class="click-reference"[^>]*>)?(\d+)(?:<\/a>)?)*\)?<\/sup>(?:<\/sup>)?/i',
-            '<sup>($1)</sup>',
-            $html,
-        ) ?? $html;
-        $html = preg_replace_callback(
-            '/<sup>\((?:<a[^>]*>(\d+)<\/a>\s*,\s*)*<a[^>]*>(\d+)<\/a>\)<\/sup>/i',
-            static function (array $m): string {
-                return $m[0];
-            },
-            $html,
-        ) ?? $html;
 
-        // Reescreve citações click-reference em <sup>1, 2</sup>.
-        $html = preg_replace_callback(
-            '/<sup>\((.*?)<\/sup>(?:<\/sup>)?/is',
-            static function (array $m): string {
-                preg_match_all('/\d+/', $m[1], $nums);
-
-                if ($nums[0] === []) {
-                    return $m[0];
-                }
-
-                return '<sup>('.implode(', ', array_unique($nums[0])).')</sup>';
-            },
-            $html,
-        ) ?? $html;
-
-        return trim($html);
+        // Citações: só números de referência (nunca anos/páginas colados no <sup>).
+        return trim((new NormalizarCitacoesNoHtml)->normalizar($html));
     }
 
     private function innerHtml(DOMNode $node): string

@@ -4,6 +4,10 @@ namespace App\Support\Artigos;
 
 class VinculaCitacoesNoConteudo
 {
+    public function __construct(
+        private readonly NormalizarCitacoesNoHtml $normalizarCitacoes = new NormalizarCitacoesNoHtml,
+    ) {}
+
     /**
      * Transforma marcações de citação no HTML do artigo em botões clicáveis
      * que abrem o painel lateral de referências (números 1-based).
@@ -16,7 +20,23 @@ class VinculaCitacoesNoConteudo
             return $html;
         }
 
-        return (string) preg_replace_callback(
+        // Preserva botões já vinculados para não aninhar <button> ao reprocessar.
+        $protegidos = [];
+        $html = (string) preg_replace_callback(
+            '/<button\b[^>]*\bcitacao-ref\b[^>]*>.*?<\/button>/is',
+            function (array $ocorrencia) use (&$protegidos): string {
+                $chave = '<!--CITACAO_REF_'.count($protegidos).'-->';
+                $protegidos[$chave] = $ocorrencia[0];
+
+                return $chave;
+            },
+            $html,
+        );
+
+        // Garante <sup>(n, m)</sup> limpo antes de virar botão (remove anos/páginas colados).
+        $html = $this->normalizarCitacoes->normalizar($html);
+
+        $html = (string) preg_replace_callback(
             '/<sup\b([^>]*)>(.*?)<\/sup>/is',
             function (array $ocorrencia): string {
                 $atributos = $ocorrencia[1] ?? '';
@@ -47,6 +67,8 @@ class VinculaCitacoesNoConteudo
             },
             $html,
         );
+
+        return str_replace(array_keys($protegidos), array_values($protegidos), $html);
     }
 
     /**
@@ -54,19 +76,12 @@ class VinculaCitacoesNoConteudo
      */
     public function extrairNumeros(string $texto): array
     {
-        preg_match_all('/\d+/', html_entity_decode(strip_tags($texto), ENT_QUOTES | ENT_HTML5, 'UTF-8'), $matches);
+        $extraidos = $this->normalizarCitacoes->extrairNumerosCitacao($texto);
 
-        $numeros = [];
-
-        foreach ($matches[0] as $match) {
-            $numero = (int) $match;
-
-            if ($numero > 0) {
-                $numeros[] = $numero;
-            }
-        }
-
-        return array_values(array_unique($numeros));
+        return array_values(array_map(
+            static fn (string $n): int => (int) $n,
+            $extraidos,
+        ));
     }
 
     /**

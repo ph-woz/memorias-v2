@@ -36,6 +36,7 @@ Regras absolutas de fidelidade:
 8. `slug` é a ÚNICA exceção derivada: kebab-case sem acentos a partir do título.
 9. `seo_titulo`, `seo_descricao` e `seo_palavras_chave` devem ser recortes literais do próprio documento (título/resumo/keywords), sem reescrever.
 10. NÃO devolva o corpo do artigo nem as referências completas neste passo.
+11. `autor_correspondente`: copie o bloco editorial COMPLETO e literal — de "Financial support:" até "Accepted …" (inclui productivity grants, Corresponding author, ORCID, Received e Accepted). Nunca devolva só o e-mail.
 
 Marcadores (obrigatórios quando existirem no texto):
 - `marcador_inicio_corpo`: copie as primeiras 8–15 palavras EXATAS do início do corpo (após título/autores/resumo/keywords). Prefira o cabeçalho “INTRODUCTION”/“Introdução” quando existir.

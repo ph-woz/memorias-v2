@@ -246,8 +246,9 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
 
             $mesclado = $preferirHtmlOriginal->preferir($extracao, $htmlOriginal, $textoPdf);
 
+            // Mesmo sem corpo HTML editorial, metadados (autor correspondente etc.) podem ter vindo do portal.
             if (($mesclado['fonte_conteudo'] ?? null) === null) {
-                return $extracao;
+                return $this->enriquecerCamposMetadadoHtml($mesclado, $enriquecerHtml);
             }
 
             // Garante imagens do PDF mesmo quando o corpo vem do HTML publicado.

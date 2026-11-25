@@ -16,6 +16,7 @@ class HeuristicaMetadadosPdfMemorias
      */
     public function completar(string $textoPdf, array $metadados): array
     {
+        $textoPdf = (new SanitizarTextoUtf8)->sanitizar($textoPdf);
         $inicio = mb_substr($textoPdf, 0, 9000);
 
         if ($this->campoVazio($metadados['titulo'] ?? null)) {
@@ -66,10 +67,11 @@ class HeuristicaMetadadosPdfMemorias
             }
         }
 
-        if ($this->campoVazio($metadados['autor_correspondente'] ?? null)) {
+        $correspondenteAtual = (string) ($metadados['autor_correspondente'] ?? '');
+        if ($this->autorCorrespondenteIncompleto($correspondenteAtual)) {
             $correspondente = $this->extrairAutorCorrespondente($textoPdf);
 
-            if ($correspondente !== null) {
+            if ($correspondente !== null && $this->blocoCorrespondenteMaisCompleto($correspondente, $correspondenteAtual)) {
                 $metadados['autor_correspondente'] = $correspondente;
             }
         }
@@ -239,20 +241,96 @@ class HeuristicaMetadadosPdfMemorias
 
     private function extrairAutorCorrespondente(string $texto): ?string
     {
-        // Bloco literal: financial support → Accepted (antes do corpo).
+        // Bloco literal editorial: Financial support → ORCID → Received → Accepted.
         if (preg_match(
-            '/Financial support:\s*(.+?Accepted\s+\d{1,2}\s+\w+\s+\d{4})/isu',
+            '/Financial support:\s*.+?Accepted\s+\d{1,2}\s+\w+\s+\d{4}/isu',
             $texto,
             $m,
         ) === 1) {
-            return trim('Financial support: '.$m[1]);
+            return $this->compactarBlocoCorrespondente($m[0]);
         }
 
-        if (preg_match('/Corresponding author:\s*([^\n]+)/iu', $texto, $m) === 1) {
-            return trim($m[1]);
+        // Layout moderno (mesmo sem funding): Corresponding author … ORCID … Received … Accepted
+        // (pode vir numa linha só com "|" antes do ORCID).
+        if (preg_match(
+            '/\+?\s*Corresponding authors?:\s*.+?Accepted\s+\d{1,2}\s+\w+\s+\d{4}/isu',
+            $texto,
+            $m,
+        ) === 1) {
+            return $this->compactarBlocoCorrespondente($m[0]);
         }
 
         return null;
+    }
+
+    private function compactarBlocoCorrespondente(string $bloco): string
+    {
+        $bloco = preg_replace('/[ \t]+/u', ' ', $bloco) ?? $bloco;
+        // Corta “How to cite…” / “Handling editor…” que às vezes colam após Accepted.
+        $bloco = preg_replace('/\s+How to cite:.*/isu', '', $bloco) ?? $bloco;
+        $bloco = preg_replace('/\s+Handling editor:.*/isu', '', $bloco) ?? $bloco;
+
+        return trim($bloco);
+    }
+
+    private function autorCorrespondenteIncompleto(?string $valor): bool
+    {
+        if ($this->campoVazio($valor)) {
+            return true;
+        }
+
+        $texto = $this->textoPlano((string) $valor);
+
+        if ($texto === '') {
+            return true;
+        }
+
+        // Bloco editorial típico (clássico ou moderno).
+        if (preg_match('/Accepted\s+\d/iu', $texto) === 1) {
+            if (
+                preg_match('/Financial support/iu', $texto) === 1
+                || preg_match('/Corresponding authors?/iu', $texto) === 1
+                || preg_match('/orcid\.org/iu', $texto) === 1
+            ) {
+                return false;
+            }
+        }
+
+        // Só e-mail (com ou sem rótulo Corresponding author).
+        if (preg_match(
+            '/^(\+?\s*)?(Corresponding authors?:\s*)?[^\s<>]+@[^\s<>]+\.[^\s<>]+$/iu',
+            $texto,
+        ) === 1) {
+            return true;
+        }
+
+        // Trecho curto sem marcadores do bloco editorial.
+        return mb_strlen($texto) < 80
+            && preg_match('/Financial support|Received\b|Accepted\b|orcid\.org/iu', $texto) !== 1;
+    }
+
+    private function blocoCorrespondenteMaisCompleto(string $candidato, string $atual): bool
+    {
+        if ($this->campoVazio($atual)) {
+            return true;
+        }
+
+        $candidatoPlano = $this->textoPlano($candidato);
+        $atualPlano = $this->textoPlano($atual);
+
+        if ($this->autorCorrespondenteIncompleto($atual) && ! $this->autorCorrespondenteIncompleto($candidato)) {
+            return true;
+        }
+
+        return mb_strlen($candidatoPlano) > mb_strlen($atualPlano) + 20;
+    }
+
+    private function textoPlano(string $htmlOuTexto): string
+    {
+        $texto = html_entity_decode(strip_tags($htmlOuTexto), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $texto = preg_replace('/\s+/u', ' ', $texto) ?? $texto;
+
+        return trim($texto);
     }
 
     private function extrairMarcadorCorpo(string $texto): ?string

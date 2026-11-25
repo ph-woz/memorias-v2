@@ -16,7 +16,7 @@ class MontarArtigoLiteralDoPdf
      */
     public function montar(string $textoPdf, array $metadados): array
     {
-        $textoPdf = trim($textoPdf);
+        $textoPdf = trim((new SanitizarTextoUtf8)->sanitizar($textoPdf));
 
         if (mb_strlen($textoPdf) < 500) {
             throw new RuntimeException(
@@ -805,9 +805,11 @@ class MontarArtigoLiteralDoPdf
             $referencias[] = $atual;
         }
 
+        $normalizar = new NormalizarTextoReferencia;
+
         return array_values(array_filter(
-            array_map(function (string $ref): string {
-                return $this->compactarEspacosPreservandoTexto($ref);
+            array_map(function (string $ref) use ($normalizar): string {
+                return $normalizar->normalizar($this->compactarEspacosPreservandoTexto($ref));
             }, $referencias),
             static fn (string $ref): bool => $ref !== ''
                 && mb_strlen($ref) >= 20

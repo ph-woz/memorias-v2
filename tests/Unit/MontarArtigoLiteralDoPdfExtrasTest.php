@@ -32,7 +32,7 @@ class MontarArtigoLiteralDoPdfExtrasTest extends TestCase
         $this->assertStringNotContainsString('Cha- gas', $resultado['conteudo_html']);
         $this->assertCount(3, $resultado['referencias']);
         $this->assertStringContainsString('1944) and N. flavida', $resultado['referencias'][1]);
-        $this->assertStringStartsWith('3. Weeks', $resultado['referencias'][2]);
+        $this->assertStringStartsWith('Weeks', $resultado['referencias'][2]);
     }
 
     public function test_funde_fragmento_da_coluna_entre_key_words_e_accepted(): void

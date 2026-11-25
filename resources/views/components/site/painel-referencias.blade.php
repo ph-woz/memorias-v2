@@ -55,7 +55,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18 18 6M6 6l12 12"/>
                     </svg>
                 </button>
-                <p class="pr-8 text-sm leading-relaxed text-paper/95" x-text="referencia.texto"></p>
+                <p class="pr-8 text-sm leading-relaxed text-paper/95" x-text="referencia.numero + '. ' + referencia.texto"></p>
             </article>
         </template>
     </div>

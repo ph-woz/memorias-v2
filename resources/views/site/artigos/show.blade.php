@@ -6,12 +6,15 @@
     $resumoTextoPlano = trim(html_entity_decode(strip_tags((string) $artigo->resumo), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
     $descricaoMeta = $artigo->seo_descricao ?: ($resumoTextoPlano !== '' ? $resumoTextoPlano : null);
     $conteudoComCitacoes = app(\App\Support\Artigos\VinculaCitacoesNoConteudo::class)((string) $artigo->conteudo);
+    $normalizarReferencia = app(\App\Support\Artigos\NormalizarTextoReferencia::class);
     $referenciasPainel = $artigo->referencias
         ->values()
-        ->map(static fn ($referencia, int $indice): array => [
-            'numero' => $indice + 1,
-            'texto' => (string) $referencia->texto,
-        ])
+        ->map(function ($referencia, int $indice) use ($normalizarReferencia): array {
+            return [
+                'numero' => $indice + 1,
+                'texto' => $normalizarReferencia->normalizar((string) $referencia->texto),
+            ];
+        })
         ->all();
 @endphp
 
@@ -194,7 +197,7 @@
                         <h2 class="font-display text-2xl font-semibold text-ink">{{ __('Referências') }}</h2>
                         <ol class="mt-5 list-decimal space-y-3 pl-5 text-sm leading-relaxed text-ink-muted">
                             @foreach ($artigo->referencias as $referencia)
-                                <li id="referencia-{{ $loop->iteration }}">{{ $referencia->texto }}</li>
+                                <li id="referencia-{{ $loop->iteration }}">{{ $normalizarReferencia->normalizar((string) $referencia->texto) }}</li>
                             @endforeach
                         </ol>
                     </section>

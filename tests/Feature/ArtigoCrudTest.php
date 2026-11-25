@@ -372,7 +372,9 @@ class ArtigoCrudTest extends TestCase
             ->get(route('artigos.edit', $artigo))
             ->assertOk()
             ->assertSee('Ver no site')
-            ->assertSee(route('site.artigos.show', $artigo), false);
+            ->assertSee(route('site.artigos.show', $artigo), false)
+            ->assertSee(url('/article'), false)
+            ->assertDontSee(url('/artigo'), false);
     }
 
     public function test_usuario_pode_filtrar_artigos_por_status(): void

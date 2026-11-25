@@ -59,8 +59,60 @@ HTML;
         $this->assertTrue($resultado['corpo_somente_pdf']);
         $this->assertStringContainsString('task=artigo.download', (string) $resultado['pdf_url']);
         $this->assertCount(3, $resultado['referencias']);
-        $this->assertStringStartsWith('01.', $resultado['referencias'][0]);
+        $this->assertStringStartsWith('Autor A.', $resultado['referencias'][0]);
         $this->assertStringNotContainsString('REFERENCES', $resultado['referencias'][0]);
+        $this->assertDoesNotMatchRegularExpression('/^\d/', $resultado['referencias'][0]);
+    }
+
+    public function test_preserva_citacoes_multiplas_sem_anos_bibliograficos(): void
+    {
+        $html = <<<'HTML'
+<!DOCTYPE html>
+<html><body>
+<div class="title"><h1>Artigo com citacoes</h1></div>
+<article class="full-article">
+  <div class="full-content">
+    <p><em>Rhodnius amazonicus</em> Almeida, Santos &amp; Sposina, 1973 and <em>R. zeledoni</em> Jurberg Rocha &amp; Galvão, 2009 are triatomines of rare occurrence, recorded in the north and northeastern Brazil.<sup>(<a href="/reference77" id="77" class="click-reference">77</a>, <a href="/reference78" id="78" class="click-reference">78</a>)</sup></sup> However, they still need confirmation.</p>
+  </div>
+</article>
+</body></html>
+HTML;
+
+        $resultado = (new ExtrairArtigoRicoDoHtmlMemorias)->extrair($html);
+
+        $this->assertNotNull($resultado);
+        $this->assertStringContainsString(
+            'northeastern Brazil.<sup>(77, 78)</sup> However,',
+            (string) $resultado['conteudo_html'],
+        );
+        $this->assertStringNotContainsString('1977', (string) $resultado['conteudo_html']);
+        $this->assertStringNotContainsString('<sup>(77)</sup>', (string) $resultado['conteudo_html']);
+    }
+
+    public function test_extrai_bloco_completo_do_autor_correspondente(): void
+    {
+        $html = <<<'HTML'
+<!DOCTYPE html>
+<html><body>
+<div class="title"><h1>Artigo correspondente completo</h1></div>
+<article class="full-article"><div class="full-content"><div id="textabstract"><p>Resumo.</p></div></div></article>
+<div id="author-reference" class="author-reference">
+  <p>Financial support: CNPq, FAPESP (process no. 2016/08176-9), FAPERJ. <br />JC, CEA and CG are CNPq Research Productivity Granted - PQ-2 (303363/2017-7, 306357/2019-4, and 305182/2019-6). <br /><a href="#top">+</a> Corresponding author: <a href="mailto:jcosta@ioc.fiocruz.br">jcosta@ioc.fiocruz.br</a><br /> <img src="/images/orcid_16x16.gif" alt="ORCID" /> https://orcid.org/0000-0001-6664-1394 <br />Received 14 January 2021<br />Accepted 04 May 2021</p>
+  <a id="back" href="#system" class="return-top"><i class="fa fa-angle-up"></i></a>
+</div>
+</body></html>
+HTML;
+
+        $resultado = (new ExtrairArtigoRicoDoHtmlMemorias)->extrair($html);
+
+        $this->assertNotNull($resultado);
+        $correspondente = (string) $resultado['autor_correspondente'];
+        $this->assertStringContainsString('Financial support: CNPq, FAPESP (process no. 2016/08176-9), FAPERJ.', $correspondente);
+        $this->assertStringContainsString('PQ-2 (303363/2017-7, 306357/2019-4, and 305182/2019-6)', $correspondente);
+        $this->assertStringContainsString('jcosta@ioc.fiocruz.br', $correspondente);
+        $this->assertStringContainsString('https://orcid.org/0000-0001-6664-1394', $correspondente);
+        $this->assertStringContainsString('Received 14 January 2021', $correspondente);
+        $this->assertStringContainsString('Accepted 04 May 2021', $correspondente);
     }
 
     public function test_extrai_corpo_rico_quando_ha_paragrafos_editoriais(): void

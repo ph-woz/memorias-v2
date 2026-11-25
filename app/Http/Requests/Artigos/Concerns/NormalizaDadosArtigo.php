@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Artigos\Concerns;
 
 use App\Enums\StatusArtigo;
+use App\Support\Artigos\NormalizarTextoReferencia;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 
@@ -53,7 +54,7 @@ trait NormalizaDadosArtigo
             'palavras_chave' => $this->textosLimpos($payload['palavras_chave'] ?? []),
             'areas_tematicas' => $this->textosLimpos($payload['areas_tematicas'] ?? []),
             'etiquetas' => $this->textosLimpos($payload['etiquetas'] ?? []),
-            'referencias' => $this->textosLimpos($payload['referencias'] ?? []),
+            'referencias' => $this->referenciasLimpas($payload['referencias'] ?? []),
             'documentos' => $this->documentosLimpos($payload['documentos'] ?? []),
             'seo_titulo' => $this->textoOpcional($payload['seo_titulo'] ?? null),
             'seo_descricao' => $this->textoOpcional($payload['seo_descricao'] ?? null),
@@ -88,6 +89,23 @@ trait NormalizaDadosArtigo
         return array_values(array_filter(
             array_map(
                 static fn (mixed $valor): string => trim((string) $valor),
+                $valores,
+            ),
+            static fn (string $valor): bool => $valor !== '',
+        ));
+    }
+
+    /**
+     * @param  list<mixed>  $valores
+     * @return list<string>
+     */
+    private function referenciasLimpas(array $valores): array
+    {
+        $normalizar = app(NormalizarTextoReferencia::class);
+
+        return array_values(array_filter(
+            array_map(
+                fn (mixed $valor): string => $normalizar->normalizar((string) $valor),
                 $valores,
             ),
             static fn (string $valor): bool => $valor !== '',

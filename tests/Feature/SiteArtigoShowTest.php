@@ -72,4 +72,33 @@ class SiteArtigoShowTest extends TestCase
             ->assertSeeText('Primeira referência completa.')
             ->assertSeeText('Segunda referência completa.');
     }
+
+    public function test_pagina_do_artigo_nao_duplica_numeracao_das_referencias(): void
+    {
+        $usuario = User::factory()->create();
+
+        $artigo = Artigo::factory()->for($usuario, 'cadastrante')->create([
+            'titulo' => 'Artigo com refs numeradas',
+            'slug' => 'refs-numeradas',
+            'conteudo' => '<p>Texto.</p>',
+            'status' => StatusArtigo::Publicado,
+            'publicado_em' => now()->subDay(),
+        ]);
+
+        // Simula dado legado já gravado com número no texto.
+        $artigo->referencias()->create([
+            'texto' => '71. Dale C, Almeida CE. Title of the paper. 2019.',
+            'ordem' => 0,
+        ]);
+
+        $html = $this->get(route('site.artigos.show', $artigo))
+            ->assertOk()
+            ->assertSeeText('Dale C, Almeida CE. Title of the paper. 2019.')
+            ->assertDontSeeText('71. 71')
+            ->assertDontSeeText('71. Dale')
+            ->getContent();
+
+        $this->assertStringContainsString('list-decimal', $html);
+        $this->assertStringNotContainsString('>71. Dale', $html);
+    }
 }

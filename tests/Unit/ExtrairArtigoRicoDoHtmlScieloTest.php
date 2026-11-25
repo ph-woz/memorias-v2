@@ -26,6 +26,7 @@ class ExtrairArtigoRicoDoHtmlScieloTest extends TestCase
         $this->assertStringContainsString('Chagas disease persists', strip_tags((string) $resultado['resumo']));
         $this->assertContains('American Trypanosomiasis', $resultado['palavras_chave']);
         $this->assertCount(3, $resultado['referencias']);
-        $this->assertStringStartsWith('1 ', $resultado['referencias'][0]);
+        $this->assertDoesNotMatchRegularExpression('/^\d/', $resultado['referencias'][0]);
+        $this->assertNotSame('', $resultado['referencias'][0]);
     }
 }

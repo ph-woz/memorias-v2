@@ -67,4 +67,34 @@ class PreferirConteudoHtmlOriginalTest extends TestCase
         $this->assertArrayNotHasKey('fonte_conteudo', $resultado);
         $this->assertSame($pdf['conteudo_html'], $resultado['conteudo_html']);
     }
+
+    public function test_mescla_autor_correspondente_mesmo_sem_corpo_html(): void
+    {
+        $bloco = 'Financial support: CNPq, FAPESP (process no. 2016/08176-9), FAPERJ. '
+            .'JC, CEA and CG are CNPq Research Productivity Granted - PQ-2 (303363/2017-7, 306357/2019-4, and 305182/2019-6). '
+            .'+ Corresponding author: jcosta@ioc.fiocruz.br '
+            .'https://orcid.org/0000-0001-6664-1394 '
+            .'Received 14 January 2021 '
+            .'Accepted 04 May 2021';
+
+        $textoPdf = 'Despite the great achievements in controlling Chagas disease. '.$bloco;
+
+        $pdf = [
+            'conteudo_html' => '<p>Despite the great achievements in controlling Chagas disease.</p>',
+            'autor_correspondente' => 'jcosta@ioc.fiocruz.br',
+        ];
+
+        $html = [
+            'conteudo_html' => '',
+            'autor_correspondente' => '<p>'.$bloco.'</p>',
+            'fonte' => 'memorias',
+        ];
+
+        $resultado = (new PreferirConteudoHtmlOriginal)->preferir($pdf, $html, $textoPdf);
+
+        $this->assertArrayNotHasKey('fonte_conteudo', $resultado);
+        $this->assertStringContainsString('Financial support: CNPq, FAPESP (process no. 2016/08176-9), FAPERJ.', (string) $resultado['autor_correspondente']);
+        $this->assertStringContainsString('Accepted 04 May 2021', (string) $resultado['autor_correspondente']);
+        $this->assertSame($pdf['conteudo_html'], $resultado['conteudo_html']);
+    }
 }

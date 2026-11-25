@@ -137,6 +137,7 @@ class ValidarFidelidadeExtracaoPdf
      */
     public function normalizarComMapa(string $texto): array
     {
+        $texto = (new SanitizarTextoUtf8)->sanitizar($texto);
         $texto = html_entity_decode($texto, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $texto = strip_tags($texto);
         $texto = str_replace(["\u{00AD}", "\u{200B}", "\u{FEFF}"], '', $texto);

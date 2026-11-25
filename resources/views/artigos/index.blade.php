@@ -136,24 +136,24 @@
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <table class="w-full table-fixed divide-y divide-gray-200 text-sm">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-4 py-3 text-left font-medium text-gray-500">{{ __('Artigo') }}</th>
-                                <th class="px-4 py-3 text-left font-medium text-gray-500">{{ __('Categoria') }}</th>
-                                <th class="px-4 py-3 text-left font-medium text-gray-500">{{ __('Autores') }}</th>
-                                <th class="px-4 py-3 text-left font-medium text-gray-500">{{ __('Status') }}</th>
-                                <th class="px-4 py-3 text-left font-medium text-gray-500">
+                                <th class="w-[34%] px-4 py-3 text-left font-medium text-gray-500">{{ __('Artigo') }}</th>
+                                <th class="w-[14%] px-4 py-3 text-left font-medium text-gray-500">{{ __('Categoria') }}</th>
+                                <th class="w-[18%] px-4 py-3 text-left font-medium text-gray-500">{{ __('Autores') }}</th>
+                                <th class="w-[10%] px-4 py-3 text-left font-medium text-gray-500">{{ __('Status') }}</th>
+                                <th class="w-[12%] px-4 py-3 text-left font-medium text-gray-500">
                                     {{ $excluidos ? __('Excluído por') : __('Atualizado') }}
                                 </th>
-                                <th class="px-4 py-3 text-right font-medium text-gray-500">{{ __('Ações') }}</th>
+                                <th class="w-[12%] px-4 py-3 text-right font-medium text-gray-500">{{ __('Ações') }}</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
                             @forelse ($artigos as $artigo)
                                 <tr>
                                     <td class="px-4 py-3">
-                                        <div class="flex items-center gap-3">
+                                        <div class="flex min-w-0 items-center gap-3">
                                             @if ($artigo->url_foto)
                                                 <img
                                                     src="{{ $artigo->url_foto }}"
@@ -165,14 +165,13 @@
                                                     —
                                                 </div>
                                             @endif
-                                            <div class="min-w-0">
-                                                <p class="truncate font-medium text-gray-900">{{ $artigo->titulo }}</p>
-                                                <p class="truncate font-mono text-xs text-gray-500">{{ $artigo->slug }}</p>
+                                            <div class="min-w-0 flex-1 overflow-hidden">
+                                                <p class="truncate font-medium text-gray-900" title="{{ $artigo->titulo }}">{{ $artigo->titulo }}</p>
                                                 @if ($artigo->etiquetas->isNotEmpty())
-                                                    <div class="mt-1 flex flex-wrap gap-1">
+                                                    <div class="mt-1 flex flex-nowrap gap-1 overflow-hidden">
                                                         @foreach ($artigo->etiquetas as $etiqueta)
                                                             <span
-                                                                class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
+                                                                class="inline-flex shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
                                                                 style="background-color: {{ $etiqueta->cor }}"
                                                             >
                                                                 {{ $etiqueta->nome }}
@@ -183,12 +182,12 @@
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="max-w-[10rem] px-4 py-3 text-gray-600">
+                                    <td class="px-4 py-3 text-gray-600">
                                         <p class="truncate" title="{{ $artigo->categorias->pluck('nome')->join(', ') }}">
                                             {{ $artigo->categorias->pluck('nome')->join(', ') ?: '—' }}
                                         </p>
                                     </td>
-                                    <td class="max-w-[14rem] px-4 py-3 text-gray-600">
+                                    <td class="px-4 py-3 text-gray-600">
                                         @php
                                             $nomesAutores = $artigo->autores->pluck('nome')->join(', ');
                                         @endphp
