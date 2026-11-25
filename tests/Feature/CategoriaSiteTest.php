@@ -18,15 +18,15 @@ class CategoriaSiteTest extends TestCase
             'slug' => 'memorias',
         ]);
 
-        Artigo::factory()->publicado()->create([
-            'categoria_id' => $categoria->id,
+        $publicado = Artigo::factory()->publicado()->create([
             'titulo' => 'Artigo da categoria',
         ]);
+        $publicado->categorias()->sync([$categoria->id]);
 
-        Artigo::factory()->create([
-            'categoria_id' => $categoria->id,
+        $rascunho = Artigo::factory()->create([
             'titulo' => 'Rascunho oculto',
         ]);
+        $rascunho->categorias()->sync([$categoria->id]);
 
         $this->get(route('site.categorias.show', $categoria))
             ->assertOk()
