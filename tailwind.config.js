@@ -36,6 +36,7 @@ export default {
             fontSize: {
                 'display': ['clamp(2.75rem, 6vw, 5.5rem)', { lineHeight: '1.02', letterSpacing: '-0.03em' }],
                 'display-sm': ['clamp(2rem, 4vw, 3.25rem)', { lineHeight: '1.08', letterSpacing: '-0.025em' }],
+                'display-feature': ['clamp(2rem, 3.6vw, 3rem)', { lineHeight: '1.12', letterSpacing: '-0.025em' }],
             },
             maxWidth: {
                 site: '72rem',

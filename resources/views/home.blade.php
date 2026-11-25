@@ -217,22 +217,11 @@
                 <div class="pointer-events-none absolute -right-20 -top-20 size-72 rounded-full bg-accent/20 blur-3xl"></div>
                 <div class="relative max-w-2xl">
                     <h2 class="font-display text-display-sm font-semibold tracking-tight">
-                        {{ __('Cada descoberta merece um lugar.') }}
+                        {{ __('Ciência que permanece acessível.') }}
                     </h2>
                     <p class="mt-4 text-base leading-relaxed text-white/65">
-                        {{ __('Organize, publique e compartilhe o acervo editorial com um painel feito para durar.') }}
+                        {{ __('Explore artigos, temas e publicações do acervo editorial das Memórias.') }}
                     </p>
-                    @auth
-                        <a href="{{ route('artigos.create') }}" class="mt-8 inline-flex items-center gap-3 bg-white px-6 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-ink transition hover:bg-accent-bright">
-                            {{ __('Escrever um artigo') }}
-                            <span aria-hidden="true">→</span>
-                        </a>
-                    @else
-                        <a href="{{ route('login') }}" class="mt-8 inline-flex items-center gap-3 bg-white px-6 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-ink transition hover:bg-accent-bright">
-                            {{ __('Acessar o painel') }}
-                            <span aria-hidden="true">→</span>
-                        </a>
-                    @endauth
                 </div>
             </div>
         </section>

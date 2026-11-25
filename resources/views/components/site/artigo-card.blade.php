@@ -48,7 +48,7 @@
 
         <h3 @class([
             'mt-3 font-display font-semibold tracking-tight text-ink transition duration-300 group-hover:text-accent-deep',
-            'text-display-sm' => $destaque,
+            'text-display-feature' => $destaque,
             'text-xl leading-snug sm:text-2xl' => ! $destaque,
         ])>
             {{ $artigo->titulo }}
