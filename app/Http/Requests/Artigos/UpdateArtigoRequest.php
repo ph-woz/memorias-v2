@@ -62,6 +62,7 @@ class UpdateArtigoRequest extends FormRequest
             'seo_palavras_chave' => ['nullable', 'string', 'max:255'],
             'publicado_em' => ['nullable', 'date'],
             'foto' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp,gif', 'max:5120'],
+            'acao' => ['nullable', 'string', Rule::in(['ver_no_site'])],
         ];
     }
 

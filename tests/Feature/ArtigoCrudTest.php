@@ -372,9 +372,51 @@ class ArtigoCrudTest extends TestCase
             ->get(route('artigos.edit', $artigo))
             ->assertOk()
             ->assertSee('Ver no site')
-            ->assertSee(route('site.artigos.show', $artigo), false)
-            ->assertSee(url('/article'), false)
-            ->assertDontSee(url('/artigo'), false);
+            ->assertSee('name="acao"', false)
+            ->assertSee('value="ver_no_site"', false)
+            ->assertSee('form="formulario-artigo"', false);
+    }
+
+    public function test_ver_no_site_salva_antes_de_abrir(): void
+    {
+        $usuario = User::factory()->create();
+        $artigo = Artigo::factory()->for($usuario, 'cadastrante')->create([
+            'titulo' => 'Título antigo',
+            'slug' => 'titulo-antigo',
+        ]);
+
+        $resposta = $this->actingAs($usuario)
+            ->put(route('artigos.update', $artigo), [
+                'titulo' => 'Título salvo ao ver',
+                'slug' => 'titulo-salvo-ao-ver',
+                'resumo' => null,
+                'conteudo' => 'Corpo salvo',
+                'status' => StatusArtigo::Rascunho->value,
+                'autores' => [$usuario->nome],
+                'palavras_chave' => [],
+                'acao' => 'ver_no_site',
+            ]);
+
+        $artigoAtualizado = $artigo->fresh();
+
+        $resposta
+            ->assertRedirect(route('artigos.edit', $artigoAtualizado))
+            ->assertSessionHas('status', 'artigo-atualizado')
+            ->assertSessionHas(
+                'abrir_site_url',
+                route('site.artigos.show', $artigoAtualizado),
+            );
+
+        $this->assertDatabaseHas('artigos', [
+            'id' => $artigo->id,
+            'titulo' => 'Título salvo ao ver',
+            'slug' => 'titulo-salvo-ao-ver',
+        ]);
+
+        $this->followRedirects($resposta)
+            ->assertOk()
+            ->assertSee('window.open', false)
+            ->assertSee('titulo-salvo-ao-ver', false);
     }
 
     public function test_usuario_pode_filtrar_artigos_por_status(): void

@@ -347,9 +347,17 @@ class ArtigoController extends Controller
             $this->sincronizarRelacoes($artigo, $dados);
         });
 
-        return redirect()
+        $artigo->refresh();
+
+        $redirect = redirect()
             ->route('artigos.edit', $artigo)
             ->with('status', 'artigo-atualizado');
+
+        if ($request->input('acao') === 'ver_no_site') {
+            $redirect->with('abrir_site_url', route('site.artigos.show', $artigo));
+        }
+
+        return $redirect;
     }
 
     public function destroy(Request $request, Artigo $artigo): RedirectResponse
