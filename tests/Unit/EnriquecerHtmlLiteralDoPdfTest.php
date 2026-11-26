@@ -93,11 +93,14 @@ class EnriquecerHtmlLiteralDoPdfTest extends TestCase
         $this->assertStringContainsString('<em>Triatoma infestans</em>', $resultado);
     }
 
-    public function test_preserva_e_insere_raster_de_tabela_landscape(): void
+    public function test_preserva_table_html_e_remove_raster_de_tabela_landscape(): void
     {
         $html = '<p>Material and methods describe sampling.</p>'
-            .'<p>Table I summarizes type locality and DNA sequence data.</p>'
+            .'<table><caption>TABLE I</caption><thead><tr><th>Type locality</th><th>Distribution</th><th>Collection</th><th>Ecotope</th><th>DNA sequence</th></tr></thead>'
+            .'<tbody><tr><td>Jacundá</td><td>Pará, Brazil</td><td>USP</td><td>Dwellings</td><td>18S</td></tr></tbody></table>'
+            .'<p>Table I summarizes type locality Distribution Collection Ecotope DNA sequence data.</p>'
             .'<p style="text-align:center"><img src="/storage/artigos/conteudo/x/pagina-4.jpg" alt="pagina-4"></p>'
+            .'<p style="text-align:center"><img src="/storage/artigos/conteudo/x/tabela-pagina-4.jpg" alt="tabela-pagina-4"></p>'
             .'<h2><strong>REFERENCES</strong></h2>';
 
         $resultado = (new EnriquecerHtmlLiteralDoPdf)->polir($html, [
@@ -112,17 +115,20 @@ class EnriquecerHtmlLiteralDoPdfTest extends TestCase
                 'alt' => 'tabela-pagina-4',
             ],
             [
-                'path' => 'artigos/conteudo/x/tabela-pagina-5.jpg',
-                'url' => '/storage/artigos/conteudo/x/tabela-pagina-5.jpg',
-                'alt' => 'tabela-pagina-5',
+                'path' => 'artigos/conteudo/x/fig-1.jpg',
+                'url' => '/storage/artigos/conteudo/x/fig-1.jpg',
+                'alt' => 'fig-1',
             ],
         ]);
 
-        $this->assertDoesNotMatchRegularExpression('/(?<!tabela-)pagina-4\.jpg/', $resultado);
-        $this->assertStringContainsString('tabela-pagina-4.jpg', $resultado);
-        $this->assertStringContainsString('tabela-pagina-5.jpg', $resultado);
-        $posTabela = strpos($resultado, 'tabela-pagina-4.jpg');
-        $posReferences = strpos($resultado, 'REFERENCES');
+        $this->assertStringContainsString('<table', $resultado);
+        $this->assertStringContainsString('TABLE I', $resultado);
+        $this->assertStringContainsString('fig-1.jpg', $resultado);
+        $this->assertStringNotContainsString('pagina-4.jpg', $resultado);
+        $this->assertStringNotContainsString('tabela-pagina-4.jpg', $resultado);
+        $this->assertStringNotContainsString('type locality Distribution Collection Ecotope DNA sequence', $resultado);
+        $posTabela = stripos($resultado, '<table');
+        $posReferences = stripos($resultado, 'REFERENCES');
         $this->assertNotFalse($posTabela);
         $this->assertNotFalse($posReferences);
         $this->assertLessThan($posReferences, $posTabela);

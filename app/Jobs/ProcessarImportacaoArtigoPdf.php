@@ -219,6 +219,7 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
                 + preg_match_all('/<strong\b/i', $html)
                 + preg_match_all('/<sup\b/i', $html)
                 + preg_match_all('/<img\b/i', $html)
+                + (preg_match_all('/<table\b/i', $html) * 8)
                 + (int) min(30, preg_match_all('/<p\b/i', $html));
         };
 

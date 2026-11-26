@@ -351,6 +351,8 @@
 .conteudo-rico {
     font-size: 1.3125rem;
     line-height: 2.05;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .conteudo-rico.prose :where(p),
@@ -448,9 +450,16 @@
 .conteudo-rico table {
     border-collapse: collapse;
     margin: 0.75rem 0;
-    overflow: hidden;
-    table-layout: fixed;
-    width: 100%;
+    table-layout: auto;
+    width: max-content;
+    min-width: 100%;
+}
+
+.conteudo-rico table caption {
+    caption-side: top;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    text-align: left;
 }
 
 .editor-conteudo .ProseMirror td,

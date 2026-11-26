@@ -50,6 +50,7 @@ class EnriquecerHtmlLiteralDoPdf
         $html = $this->removerTitulosSecaoDuplicados($html);
         $html = $this->removerPrintsDePagina($html);
         $html = $this->inserirImagens($html, $imagens);
+        $html = $this->removerProsaDuplicadaDeTabela($html);
 
         return trim($html);
     }
@@ -680,23 +681,23 @@ class EnriquecerHtmlLiteralDoPdf
     }
 
     /**
-     * Remove prints de página inteira (pagina-N.jpg) que duplicam o texto já presente.
-     * Não remove rasters dedicados de tabela landscape (tabela-pagina-N.jpg).
+     * Remove prints de página inteira (pagina-N.jpg / tabela-pagina-N.jpg).
+     * Tabelas landscape são texto do PDF → HTML table, nunca raster.
      */
     private function removerPrintsDePagina(string $html): string
     {
         $html = (string) preg_replace(
-            '/<figure\b[^>]*>\s*<img\b[^>]*(?:src|alt)=["\'][^"\']*(?<!tabela-)pagina-\d+\.(?:jpe?g|png|webp)[^"\']*["\'][^>]*>.*?<\/figure>/is',
+            '/<figure\b[^>]*>\s*<img\b[^>]*(?:src|alt)=["\'][^"\']*(?:tabela-)?pagina-\d+\.(?:jpe?g|png|webp)[^"\']*["\'][^>]*>.*?<\/figure>/is',
             '',
             $html,
         );
         $html = (string) preg_replace(
-            '/<p\b[^>]*>\s*<img\b[^>]*(?:src|alt)=["\'][^"\']*(?<!tabela-)pagina-\d+\.(?:jpe?g|png|webp)[^"\']*["\'][^>]*>\s*<\/p>/is',
+            '/<p\b[^>]*>\s*<img\b[^>]*(?:src|alt)=["\'][^"\']*(?:tabela-)?pagina-\d+\.(?:jpe?g|png|webp)[^"\']*["\'][^>]*>\s*<\/p>/is',
             '',
             $html,
         );
         $html = (string) preg_replace(
-            '/<img\b[^>]*(?:src|alt)=["\'][^"\']*(?<!tabela-)pagina-\d+\.(?:jpe?g|png|webp)[^"\']*["\'][^>]*>/is',
+            '/<img\b[^>]*(?:src|alt)=["\'][^"\']*(?:tabela-)?pagina-\d+\.(?:jpe?g|png|webp)[^"\']*["\'][^>]*>/is',
             '',
             $html,
         );
@@ -715,25 +716,60 @@ class EnriquecerHtmlLiteralDoPdf
             (string) ($imagem['alt'] ?? ''),
         ]);
 
-        if (preg_match('/tabela-pagina-\d+/i', $chave) === 1) {
-            return false;
-        }
-
-        return preg_match('/(?<!tabela-)pagina-\d+/i', $chave) === 1;
+        return preg_match('/(?:tabela-)?pagina-\d+/i', $chave) === 1;
     }
 
     /**
-     * @param  array{path?: string, url?: string, alt?: string}  $imagem
+     * Quando já existe table HTML, remove p que só repetem cabeçalhos/células
+     * da TABLE I (Type locality, Distribution, Ecotope, DNA sequence…).
      */
-    private function ehTabelaPagina(array $imagem): bool
+    private function removerProsaDuplicadaDeTabela(string $html): string
     {
-        $chave = implode(' ', [
-            (string) ($imagem['path'] ?? ''),
-            (string) ($imagem['url'] ?? ''),
-            (string) ($imagem['alt'] ?? ''),
-        ]);
+        if (preg_match('/<table\b/i', $html) !== 1) {
+            return $html;
+        }
 
-        return preg_match('/tabela-pagina-\d+/i', $chave) === 1;
+        return (string) preg_replace_callback(
+            '/<p\b([^>]*)>(.*?)<\/p>/is',
+            function (array $m): string {
+                $texto = trim(html_entity_decode(strip_tags($m[2]), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                $texto = trim(preg_replace('/\s+/u', ' ', $texto) ?? $texto);
+
+                if ($texto === '') {
+                    return $m[0];
+                }
+
+                if ($this->paragrafoPareceBlobDeTabela($texto)) {
+                    return '';
+                }
+
+                return $m[0];
+            },
+            $html,
+        );
+    }
+
+    private function paragrafoPareceBlobDeTabela(string $texto): bool
+    {
+        $normalizado = mb_strtolower($texto);
+        $cabecalhos = 0;
+
+        foreach (['type locality', 'distribution', 'collection', 'ecotope', 'dna sequence'] as $cabecalho) {
+            if (str_contains($normalizado, $cabecalho)) {
+                $cabecalhos++;
+            }
+        }
+
+        if ($cabecalhos >= 3) {
+            return true;
+        }
+
+        // Menção curta só listando colunas da Table I sem prosa narrativa.
+        if (preg_match('/^table\s+[ivxlcdm\d]+\b/iu', $texto) === 1 && $cabecalhos >= 2) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -761,54 +797,7 @@ class EnriquecerHtmlLiteralDoPdf
             return $html;
         }
 
-        $tabelas = [];
-        $figuras = [];
-
-        foreach ($faltantes as $imagem) {
-            if ($this->ehTabelaPagina($imagem)) {
-                $tabelas[] = $imagem;
-            } else {
-                $figuras[] = $imagem;
-            }
-        }
-
-        $html = $this->anexarImagensTabela($html, $tabelas);
-        $html = $this->anexarImagensFigura($html, $figuras);
-
-        return $html;
-    }
-
-    /**
-     * @param  list<array{path: string, url: string, alt?: string}>  $imagens
-     */
-    private function anexarImagensTabela(string $html, array $imagens): string
-    {
-        if ($imagens === []) {
-            return $html;
-        }
-
-        $blocos = '';
-
-        foreach ($imagens as $indice => $imagem) {
-            $src = e($imagem['url']);
-            $alt = e($imagem['alt'] ?? 'tabela '.($indice + 1));
-            $blocos .= '<p style="text-align:center"><img src="'.$src.'" alt="'.$alt.'"></p>';
-        }
-
-        // Perto da primeira menção a Table/Tabela, ou antes de REFERENCES.
-        if (preg_match('/(?:<\/p>|<\/h2>)\s*(?=(?:<[^>]+>\s*)*(?:Table|Tabela)\b)/is', $html, $m, PREG_OFFSET_CAPTURE) === 1) {
-            $offset = $m[0][1] + strlen($m[0][0]);
-
-            return substr($html, 0, $offset).$blocos.substr($html, $offset);
-        }
-
-        if (preg_match('/<(?:h2|p)\b[^>]*>\s*(?:<strong>)?\s*REFERENCES?\b/i', $html, $m, PREG_OFFSET_CAPTURE) === 1) {
-            $offset = $m[0][1];
-
-            return substr($html, 0, $offset).$blocos.substr($html, $offset);
-        }
-
-        return $html.$blocos;
+        return $this->anexarImagensFigura($html, $faltantes);
     }
 
     /**

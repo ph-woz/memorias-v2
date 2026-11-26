@@ -174,7 +174,7 @@ REGRAS ABSOLUTAS:
 7. Negritos do PDF em <strong> — OBRIGATÓRIO para TODO trecho em negrito no PDF, inclusive subtítulos curtos no meio do corpo (ex.: "Triatominae until 1979"). Nunca deixe subtítulo/negrito do PDF como <p> sem <strong> (use <h2>/<h3> ou <p><strong>…</strong></p>).
 8. Figuras reais: use SOMENTE as URLs listadas abaixo com <p style="text-align:center"><img src="URL" alt="…"></p> no ponto do PDF em que a figura aparece.
 9. PROIBIDO embutir print/screenshot de página de TEXTO CORRIDO (ex.: pagina-N.jpg). Texto narrativo vai só em HTML (<p>, <h2>, <em>…), nunca como <img> de página de prosa.
-10. Tabelas do PDF (inclusive landscape/rotacionadas) são OBRIGATÓRIAS no conteudo_html. Se houver URLs tabela-pagina-* na lista, insira cada uma com <p style="text-align:center"><img src="URL" alt="…"></p> no ponto em que a tabela aparece. Sem essas URLs, emita <table> HTML com o conteúdo literal da tabela (não omita).
+10. Tabelas do PDF (inclusive landscape/rotacionadas — texto virado, NÃO figura) são OBRIGATÓRIAS como <table> HTML literal (caption + thead/tbody, células fiéis ao PDF). PROIBIDO usar print/raster de página de tabela (tabela-pagina-*, screenshot). Nunca omita a tabela.
 11. Não inclua cabeçalho da revista, autores, abstract, key words nem REFERENCES no conteudo_html.
 12. resumo_html = abstract literal com a mesma marcação (<em>, <sup>).
 13. Prefira dezenas de <p> a poucos <p> longos — legibilidade tipográfica é obrigatória.

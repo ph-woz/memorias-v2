@@ -334,7 +334,7 @@ TXT.str_repeat(' Continuacao fiel do texto do autor.', 25)."\nREFERENCES\n1. Len
         $this->assertDoesNotMatchRegularExpression('/<img[^>]+(?<!tabela-)pagina-\d+/i', $artigo->conteudo);
     }
 
-    public function test_job_mantem_raster_de_tabela_landscape_no_conteudo(): void
+    public function test_job_mantem_table_html_e_nao_insere_raster_de_tabela(): void
     {
         Storage::fake('public');
 
@@ -379,9 +379,16 @@ TXT.str_repeat(' Continuacao fiel do texto do autor.', 20)."\nREFERENCES\n1. Len
         config(['ai.default' => 'gemini']);
 
         $this->mock(FormatarConteudoRicoComGemini::class, function ($mock): void {
+            $corpoRico = '<p>Despite the great achievements in controlling Chagas disease. <sup>(2)</sup> Vectors such as <em>Triatoma infestans</em> continue to challenge control programs.</p>'
+                .'<p><strong>Triatominae until 1979</strong></p>'
+                .'<p>Triatomines have been known since the 18th century, when the first species, <em>T. rubrofasciata</em>, was described.</p>'
+                .'<table><caption>TABLE I</caption><thead><tr><th>Type locality</th><th>Distribution</th><th>Collection</th><th>Ecotope</th><th>DNA sequence</th></tr></thead>'
+                .'<tbody><tr><td>Jacundá</td><td>Pará, Brazil</td><td>Herman Lent Collection</td><td>Dwellings</td><td>18S</td></tr></tbody></table>'
+                .'<p>Table I summarizes Type locality Distribution Collection Ecotope DNA sequence for Herman Lent Collection.</p>'
+                .str_repeat('<p>Continuacao fiel do texto do autor com <em>Rhodnius prolixus</em> e controle. <sup>(3)</sup></p>', 8);
+
             $mock->shouldReceive('formatarComFallback')->once()->andReturn([
-                'conteudo_html' => '<p>Despite the great achievements in controlling Chagas disease. (2) Vectors such as Triatoma infestans continue to challenge control programs.</p>'
-                    .'<p>Table I summarizes Type locality Distribution Collection Ecotope DNA sequence for Herman Lent Collection.</p>',
+                'conteudo_html' => $corpoRico,
                 'resumo_html' => '<p>Chagas disease persists as one of the most important, and yet most neglected, diseases in the world.</p>',
             ]);
         });
@@ -404,9 +411,10 @@ TXT.str_repeat(' Continuacao fiel do texto do autor.', 20)."\nREFERENCES\n1. Len
         $artigo = Artigo::query()->firstOrFail();
 
         $this->assertSame(StatusImportacaoArtigo::Concluida, $importacao->fresh()->status);
-        $this->assertStringContainsString('tabela-pagina-4.jpg', $artigo->conteudo);
+        $this->assertStringContainsString('<table', $artigo->conteudo);
         $this->assertStringContainsString('fig-1.jpg', $artigo->conteudo);
-        $this->assertMatchesRegularExpression('/tabela-pagina-\d+|<\s*table\b/i', $artigo->conteudo);
+        $this->assertStringNotContainsString('tabela-pagina-4.jpg', $artigo->conteudo);
+        $this->assertDoesNotMatchRegularExpression('/(?:tabela-)?pagina-\d+\.(?:jpe?g|png)/i', $artigo->conteudo);
     }
 
     /**
