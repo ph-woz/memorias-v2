@@ -165,6 +165,27 @@ class EnriquecerHtmlLiteralDoPdfTest extends TestCase
         $this->assertStringContainsString('Author contributions', $resultado);
     }
 
+    public function test_promove_acknowledgements_colado_no_fim_do_paragrafo_para_h2(): void
+    {
+        $html = '<p>may contribute to keeping endemic areas free of Chagas disease.'
+            .'<sup>108</sup><strong> ACKNOWLEDGEMENTS</strong></p>'
+            .'<p>To Dr Andrew Townsend Peterson, Biodiversity Center, Kansas University.</p>'
+            .'<h2><strong>AUTHORS’ CONTRIBUTION</strong></h2>'
+            .'<p>JC - Conceptualisation and writing.</p>';
+
+        $resultado = (new EnriquecerHtmlLiteralDoPdf)->polir($html, [], ['ACKNOWLEDGEMENTS']);
+
+        $this->assertStringContainsString('<h2><strong>ACKNOWLEDGEMENTS</strong></h2>', $resultado);
+        $this->assertStringContainsString('<h2><strong>AUTHORS’ CONTRIBUTION</strong></h2>', $resultado);
+        $this->assertSame(1, substr_count(strtoupper($resultado), 'ACKNOWLEDGEMENTS'));
+        $this->assertDoesNotMatchRegularExpression(
+            '/disease\.[^<]*<sup>108<\/sup>\s*<strong>\s*ACKNOWLEDGEMENTS\s*<\/strong>\s*<\/p>/i',
+            $resultado,
+        );
+        $this->assertStringContainsString('free of Chagas disease.', $resultado);
+        $this->assertStringContainsString('To Dr Andrew Townsend Peterson', $resultado);
+    }
+
     public function test_polir_campo_rico_converte_texto_e_preserva_html(): void
     {
         $enriquecedor = new EnriquecerHtmlLiteralDoPdf;

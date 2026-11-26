@@ -46,6 +46,7 @@ class EnriquecerHtmlLiteralDoPdf
         $html = $this->aplicarTrechosNegritoDoPdf($html, $trechosNegritoPdf);
         $html = $this->repartirParagrafosLongos($html);
         $html = $this->aplicarTipografiaPreservandoTags($html);
+        $html = $this->promoverTitulosSecaoInline($html);
         $html = $this->removerTitulosSecaoDuplicados($html);
         $html = $this->removerPrintsDePagina($html);
         $html = $this->inserirImagens($html, $imagens);
@@ -89,6 +90,72 @@ class EnriquecerHtmlLiteralDoPdf
     private function removerParagrafosVazios(string $html): string
     {
         return trim((string) preg_replace('/<p\b[^>]*>\s*(?:&nbsp;|\x{00A0})?\s*<\/p>/iu', '', $html));
+    }
+
+    /**
+     * Promove títulos de seção do PDF (ACKNOWLEDGEMENTS, AUTHORS’ CONTRIBUTION, REFERENCES)
+     * que chegaram colados no fim/início de <p> — ou só como <strong> inline — para <h2>,
+     * no mesmo padrão tipográfico das demais seções.
+     */
+    private function promoverTitulosSecaoInline(string $html): string
+    {
+        $titulo = $this->expressaoTituloSecaoFinal();
+
+        // Título no fim do parágrafo: "...disease.<sup>108</sup><strong> ACKNOWLEDGEMENTS</strong>"
+        $html = (string) preg_replace_callback(
+            '/<p\b([^>]*)>(.*?)\s*(?:<(?:strong|b)>\s*)?('.$titulo.')\s*(?:<\/(?:strong|b)>)?\s*<\/p>/is',
+            function (array $m): string {
+                $antes = trim($m[2]);
+                $antes = (string) preg_replace('/(?:<br\s*\/?>\s*)+$/i', '', $antes);
+                $h2 = $this->htmlTituloSecaoCanonico($m[3]);
+
+                if (trim(strip_tags($antes)) === '') {
+                    return $h2;
+                }
+
+                return '<p'.$m[1].'>'.$antes.'</p>'.$h2;
+            },
+            $html,
+        );
+
+        // Título no início do parágrafo com corpo a seguir: "<strong>ACKNOWLEDGEMENTS</strong> To Dr..."
+        return (string) preg_replace_callback(
+            '/<p\b([^>]*)>\s*(?:<(?:strong|b)>\s*)?('.$titulo.')\s*(?:<\/(?:strong|b)>)?\s*(?:<br\s*\/?>|\s)+(.*?)<\/p>/is',
+            function (array $m): string {
+                $resto = trim($m[3]);
+                $h2 = $this->htmlTituloSecaoCanonico($m[2]);
+
+                if (trim(strip_tags($resto)) === '') {
+                    return $h2;
+                }
+
+                return $h2.'<p'.$m[1].'>'.$resto.'</p>';
+            },
+            $html,
+        );
+    }
+
+    private function expressaoTituloSecaoFinal(): string
+    {
+        return 'ACKNOWLEDGEMENTS?|AUTHORS?[’\']\s*CONTRIBUTIONS?|AUTHOR\s+CONTRIBUTIONS?|REFERENCES?';
+    }
+
+    private function htmlTituloSecaoCanonico(string $tituloBruto): string
+    {
+        $normalizado = mb_strtoupper(trim(preg_replace('/\s+/u', ' ', $tituloBruto) ?? $tituloBruto));
+
+        if (preg_match('/^ACKNOWLEDGEMENTS?$/u', $normalizado) === 1) {
+            $titulo = 'ACKNOWLEDGEMENTS';
+        } elseif (preg_match('/^AUTHORS?[’\']\s*CONTRIBUTIONS?$/u', $normalizado) === 1
+            || preg_match('/^AUTHOR\s+CONTRIBUTIONS?$/u', $normalizado) === 1) {
+            $titulo = 'AUTHORS’ CONTRIBUTION';
+        } elseif (preg_match('/^REFERENCES?$/u', $normalizado) === 1) {
+            $titulo = 'REFERENCES';
+        } else {
+            $titulo = $normalizado;
+        }
+
+        return '<h2><strong>'.$titulo.'</strong></h2>';
     }
 
     /**
