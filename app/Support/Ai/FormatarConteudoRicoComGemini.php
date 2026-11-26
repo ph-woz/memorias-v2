@@ -171,13 +171,14 @@ REGRAS ABSOLUTAS:
 4. Nomes científicos / espécies em <em>…</em> (ex.: <em>Triatoma infestans</em>).
 5. Títulos de seção do PDF em <h2>…</h2>.
 6. Citações no texto SOMENTE como <sup>(2)</sup> ou <sup>(3, 4, 5)</sup> — só os números da referência. NUNCA coloque anos, volumes, páginas nem texto bibliográfico dentro do <sup>.
-7. Negritos do PDF em <strong> — OBRIGATÓRIO para TODO trecho em negrito no PDF, inclusive subtítulos curtos no meio do corpo (ex.: "Triatominae until 1979"). Nunca deixe subtítulo/negrito do PDF como <p> sem <strong> (use <h2>/<h3> ou <p><strong>…</strong></p>).
-8. Figuras reais: use SOMENTE as URLs listadas abaixo com <p style="text-align:center"><img src="URL" alt="…"></p> no ponto do PDF em que a figura aparece.
-9. PROIBIDO embutir print/screenshot de página de TEXTO CORRIDO (ex.: pagina-N.jpg). Texto narrativo vai só em HTML (<p>, <h2>, <em>…), nunca como <img> de página de prosa.
-10. Tabelas do PDF (inclusive landscape/rotacionadas — texto virado, NÃO figura) são OBRIGATÓRIAS como <table> HTML literal (caption + thead/tbody, células fiéis ao PDF). PROIBIDO usar print/raster de página de tabela (tabela-pagina-*, screenshot). Nunca omita a tabela.
-11. Não inclua cabeçalho da revista, autores, abstract, key words nem REFERENCES no conteudo_html.
-12. resumo_html = abstract literal com a mesma marcação (<em>, <sup>).
-13. Prefira dezenas de <p> a poucos <p> longos — legibilidade tipográfica é obrigatória.
+7. Negritos do PDF em <strong> — OBRIGATÓRIO só onde o PDF está em negrito de verdade. Subtítulos curtos (ex.: "Triatominae until 1979", "Native vectors", "Target species") vão SOZINHOS em <p><strong>…</strong></p> ou <h2>/<h3>. PROIBIDO envolver no meio da prosa a mesma expressão só porque ela é subtítulo noutro lugar (ex.: NÃO fazer These<strong>native vectors</strong>are).
+8. Espaços literais do PDF são sagrados: NUNCA cole palavras nem remova espaço ao redor de <em>/<strong>/<sup>. Errado: These<strong>native</strong>are, </sup><em>Rhodnius, </em>is. Certo: These native…, </sup> <em>Rhodnius…</em> is.
+9. Figuras reais: use SOMENTE as URLs listadas abaixo com <p style="text-align:center"><img src="URL" alt="…"></p> no ponto do PDF em que a figura aparece.
+10. PROIBIDO embutir print/screenshot de página de TEXTO CORRIDO (ex.: pagina-N.jpg). Texto narrativo vai só em HTML (<p>, <h2>, <em>…), nunca como <img> de página de prosa.
+11. Tabelas do PDF (inclusive landscape/rotacionadas — texto virado, NÃO figura) são OBRIGATÓRIAS como <table> HTML literal (caption + thead/tbody, células fiéis ao PDF). PROIBIDO usar print/raster de página de tabela (tabela-pagina-*, screenshot). Nunca omita a tabela.
+12. Não inclua cabeçalho da revista, autores, abstract, key words nem REFERENCES no conteudo_html.
+13. resumo_html = abstract literal com a mesma marcação (<em>, <sup>).
+14. Prefira dezenas de <p> a poucos <p> longos — legibilidade tipográfica é obrigatória.
 
 Imagens disponíveis (use o src exato):
 {$listaImagens}

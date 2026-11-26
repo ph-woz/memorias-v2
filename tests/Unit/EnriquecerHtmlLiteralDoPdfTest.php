@@ -152,6 +152,44 @@ class EnriquecerHtmlLiteralDoPdfTest extends TestCase
         $this->assertStringContainsString('<em>T. rubrofasciata</em>', $resultado);
     }
 
+    public function test_nao_aplica_negrito_de_subtitulo_no_meio_da_prosa(): void
+    {
+        $html = '<p>regarded as target species.</p>'
+            .'<p>These<strong>native vectors</strong>are occasionally found in households, but usually without robust signs of colonisation.'
+            .'<sup>(47)</sup><em>Rhodnius prolixus</em>is the main Chagas disease vector in Venezuela.</p>'
+            .'<p>Native vectors</p>'
+            .'<p>More than ten different species of triatomines have been found.</p>';
+
+        $resultado = (new EnriquecerHtmlLiteralDoPdf)->polir($html, [], [
+            'Target species',
+            'Native vectors',
+        ]);
+
+        $this->assertStringNotContainsString('<strong>native vectors</strong>', $resultado);
+        $this->assertStringNotContainsString('<strong>target species</strong>', $resultado);
+        $this->assertStringContainsString('These native vectors are occasionally', $resultado);
+        $this->assertStringContainsString('colonisation. <sup>(47)</sup> <em>Rhodnius prolixus</em> is the main', $resultado);
+        $this->assertMatchesRegularExpression(
+            '/<(?:p|h2)><strong>Native vectors<\/strong><\/(?:p|h2)>/',
+            $resultado,
+        );
+    }
+
+    public function test_separa_subtitulo_negrito_colado_no_fim_do_paragrafo(): void
+    {
+        $html = '<p>they are not currently regarded as target species. Native vectors</p>'
+            .'<p>More than ten different species of triatomines have been found.</p>';
+
+        $resultado = (new EnriquecerHtmlLiteralDoPdf)->polir($html, [], ['Native vectors']);
+
+        $this->assertStringContainsString('regarded as target species.</p>', $resultado);
+        $this->assertMatchesRegularExpression(
+            '/<(?:p|h2)><strong>Native vectors<\/strong><\/(?:p|h2)>/',
+            $resultado,
+        );
+        $this->assertStringNotContainsString('target species. Native vectors</p>', $resultado);
+    }
+
     public function test_remove_titulos_de_secao_duplicados_consecutivos(): void
     {
         $html = '<p>Final sentence of the discussion.(108)</p>'

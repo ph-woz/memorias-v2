@@ -43,6 +43,7 @@ class EnriquecerHtmlLiteralDoPdf
 
         $html = $this->garantirParagrafos($html);
         $html = $this->removerParagrafosVazios($html);
+        $html = $this->garantirEspacosAoRedorDeMarcacao($html);
         $html = $this->aplicarTrechosNegritoDoPdf($html, $trechosNegritoPdf);
         $html = $this->repartirParagrafosLongos($html);
         $html = $this->aplicarTipografiaPreservandoTags($html);
@@ -51,6 +52,8 @@ class EnriquecerHtmlLiteralDoPdf
         $html = $this->removerPrintsDePagina($html);
         $html = $this->inserirImagens($html, $imagens);
         $html = $this->removerProsaDuplicadaDeTabela($html);
+        $html = $this->garantirEspacosAoRedorDeMarcacao($html);
+        $html = $this->removerParagrafosVazios($html);
 
         return trim($html);
     }
@@ -81,36 +84,187 @@ class EnriquecerHtmlLiteralDoPdf
     }
 
     /**
-     * Aplica <strong> a trechos que o PDF marca em fonte negrito.
+     * Aplica <strong> só a subtítulos/trechos negrito do PDF como bloco inteiro.
+     * Nunca faz replace de substring no meio da prosa (ex.: "native vectors" no corpo).
      *
      * @param  list<string>  $trechos
      */
     private function aplicarTrechosNegritoDoPdf(string $html, array $trechos): string
     {
+        $trechos = $this->normalizarListaTrechosNegrito($trechos);
+
+        // Gemini às vezes envolve a mesma frase do subtítulo no meio do parágrafo.
+        $html = $this->removerNegritoInlineDeParagrafos($html);
+        $html = $this->promoverSubtitulosNegritoNoFimDoParagrafo($html, $trechos);
+
         if ($trechos === []) {
             return $html;
         }
 
-        return $this->mapearTextoForaDeTipografia($html, function (string $chunk) use ($trechos): string {
-            foreach ($trechos as $trecho) {
-                if ($trecho === '' || mb_strlen($trecho) < 6) {
-                    continue;
-                }
+        return $this->envolverParagrafosIguaisATrechoNegrito($html, $trechos);
+    }
 
-                if (mb_stripos($chunk, $trecho) === false) {
-                    continue;
-                }
+    /**
+     * @param  list<string>  $trechos
+     * @return list<string>
+     */
+    private function normalizarListaTrechosNegrito(array $trechos): array
+    {
+        $saida = [];
+        $vistos = [];
 
-                $chunk = preg_replace(
-                    '/'.preg_quote($trecho, '/').'/iu',
-                    '<strong>$0</strong>',
-                    $chunk,
-                    1,
-                ) ?? $chunk;
+        foreach ($trechos as $trecho) {
+            $trecho = trim(preg_replace('/\s+/u', ' ', (string) $trecho) ?? (string) $trecho);
+
+            if ($trecho === '' || mb_strlen($trecho) < 6 || mb_strlen($trecho) > 120) {
+                continue;
             }
 
-            return $chunk;
-        });
+            // Cabeçalho/rodapé do PDF costuma vir como um único "negrito" gigante.
+            if (str_contains($trecho, '|') || preg_match('/\bdoi:\s*10\./i', $trecho) === 1) {
+                continue;
+            }
+
+            $chave = mb_strtolower($trecho);
+
+            if (isset($vistos[$chave])) {
+                continue;
+            }
+
+            $vistos[$chave] = true;
+            $saida[] = $trecho;
+        }
+
+        usort($saida, fn (string $a, string $b): int => mb_strlen($b) <=> mb_strlen($a));
+
+        return $saida;
+    }
+
+    /**
+     * Remove <strong> no meio de <p>; mantém só quando o parágrafo inteiro é negrito.
+     */
+    private function removerNegritoInlineDeParagrafos(string $html): string
+    {
+        return (string) preg_replace_callback(
+            '/<p\b([^>]*)>(.*?)<\/p>/is',
+            function (array $m): string {
+                $interno = $m[2];
+
+                if (! str_contains(strtolower($interno), '<strong')) {
+                    return $m[0];
+                }
+
+                if (preg_match('/^\s*<strong\b[^>]*>[\s\S]*?<\/strong>\s*$/i', $interno) === 1) {
+                    return $m[0];
+                }
+
+                $limpo = preg_replace('/<\/?strong\b[^>]*>/i', '', $interno) ?? $interno;
+
+                return '<p'.$m[1].'>'.$limpo.'</p>';
+            },
+            $html,
+        );
+    }
+
+    /**
+     * Separa subtítulo negrito colado no fim do parágrafo anterior.
+     *
+     * @param  list<string>  $trechos
+     */
+    private function promoverSubtitulosNegritoNoFimDoParagrafo(string $html, array $trechos): string
+    {
+        foreach ($trechos as $trecho) {
+            if (mb_strlen($trecho) > 90) {
+                continue;
+            }
+
+            $q = preg_quote($trecho, '/');
+            $html = (string) preg_replace_callback(
+                '/<p\b([^>]*)>(.*?)(?:\s|<br\s*\/?>)*('.$q.')\s*<\/p>/is',
+                function (array $m) use ($trecho): string {
+                    $antes = trim((string) preg_replace('/(?:<br\s*\/?>\s*)+$/i', '', $m[2]));
+                    $antesTexto = trim(html_entity_decode(strip_tags($antes), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                    $antesTexto = trim(preg_replace('/\s+/u', ' ', $antesTexto) ?? $antesTexto);
+
+                    if ($antesTexto === '' || strcasecmp($antesTexto, $trecho) === 0) {
+                        return $m[0];
+                    }
+
+                    if (preg_match('/[.!?)]$|<\/sup>$/iu', $antesTexto) !== 1
+                        && preg_match('/[.!?)](?:\s*<[^>]+>)*\s*$/u', $antes) !== 1) {
+                        return $m[0];
+                    }
+
+                    return '<p'.$m[1].'>'.$antes.'</p><p><strong>'.$m[3].'</strong></p>';
+                },
+                $html,
+            );
+        }
+
+        return $html;
+    }
+
+    /**
+     * @param  list<string>  $trechos
+     */
+    private function envolverParagrafosIguaisATrechoNegrito(string $html, array $trechos): string
+    {
+        return (string) preg_replace_callback(
+            '/<p\b([^>]*)>(.*?)<\/p>/is',
+            function (array $m) use ($trechos): string {
+                $interno = $m[2];
+
+                if (str_contains(strtolower($interno), '<img')) {
+                    return $m[0];
+                }
+
+                $texto = trim(html_entity_decode(strip_tags($interno), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                $texto = trim(preg_replace('/\s+/u', ' ', $texto) ?? $texto);
+
+                if ($texto === '') {
+                    return $m[0];
+                }
+
+                foreach ($trechos as $trecho) {
+                    if (strcasecmp($texto, $trecho) !== 0) {
+                        continue;
+                    }
+
+                    if (preg_match('/^\s*<strong\b/i', $interno) === 1) {
+                        return $m[0];
+                    }
+
+                    return '<p'.$m[1].'><strong>'.e($texto).'</strong></p>';
+                }
+
+                return $m[0];
+            },
+            $html,
+        );
+    }
+
+    /**
+     * Insere espaço quando palavra/número fica colado a <em>/<strong>/<sup> (ou entre eles).
+     */
+    private function garantirEspacosAoRedorDeMarcacao(string $html): string
+    {
+        $html = preg_replace(
+            '/(\p{L}|\p{N}|[.!?])(<(?:strong|b|em|i|sup|a)\b[^>]*>)/u',
+            '$1 $2',
+            $html,
+        ) ?? $html;
+
+        $html = preg_replace(
+            '/(<\/(?:strong|b|em|i|sup|a)>)(\p{L}|\p{N})/u',
+            '$1 $2',
+            $html,
+        ) ?? $html;
+
+        return preg_replace(
+            '/(<\/(?:strong|b|em|i|sup)>)(<(?:strong|b|em|i|sup)\b)/u',
+            '$1 $2',
+            $html,
+        ) ?? $html;
     }
 
     private function removerParagrafosVazios(string $html): string

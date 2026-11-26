@@ -129,7 +129,11 @@ class ExtrairTrechosNegritoDoPdf
         $saida = [];
 
         foreach ($trechos as $trecho) {
-            if (mb_strlen($trecho) < 6) {
+            if (mb_strlen($trecho) < 6 || mb_strlen($trecho) > 120) {
+                continue;
+            }
+
+            if (str_contains($trecho, '|') || preg_match('/\bdoi:\s*10\./i', $trecho) === 1) {
                 continue;
             }
 
