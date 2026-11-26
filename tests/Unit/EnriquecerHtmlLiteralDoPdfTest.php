@@ -190,6 +190,28 @@ class EnriquecerHtmlLiteralDoPdfTest extends TestCase
         $this->assertStringNotContainsString('target species. Native vectors</p>', $resultado);
     }
 
+    public function test_separa_subtitulo_negrito_colado_no_meio_do_paragrafo(): void
+    {
+        $html = '<p>In this review we contextualise the new vector species regarding their ecological '
+            .'characteristics, epidemiologic importance, and the new obstacles they pose to the monitoring '
+            .'and control of Chagas disease around the world.'
+            .'<strong>Triatominae until 1979</strong>'
+            .'Triatomines have been known since the 18th century, when the first species,'
+            .'<em>T. rubrofasciata</em>(De Geer, 1773), was described in Indonesia.</p>';
+
+        $resultado = (new EnriquecerHtmlLiteralDoPdf)->polir($html, [], ['Triatominae until 1979']);
+
+        $this->assertMatchesRegularExpression(
+            '/around the world\.\s*<\/p>\s*<(?:p|h2)><strong>Triatominae until 1979<\/strong><\/(?:p|h2)>\s*<p>/i',
+            $resultado,
+        );
+        $this->assertStringContainsString('Triatomines have been known since the 18th century', $resultado);
+        $this->assertStringContainsString('<em>T. rubrofasciata</em> (De Geer, 1773)', $resultado);
+        $this->assertStringNotContainsString('world.<strong>Triatominae', $resultado);
+        $this->assertStringNotContainsString('1979</strong>Triatomines', $resultado);
+        $this->assertStringNotContainsString('</em>(De Geer', $resultado);
+    }
+
     public function test_remove_titulos_de_secao_duplicados_consecutivos(): void
     {
         $html = '<p>Final sentence of the discussion.(108)</p>'

@@ -362,7 +362,14 @@
     font-size: 1.3125rem;
     line-height: 2.05;
     text-align: justify;
+    text-indent: 1.5em;
     hyphens: auto;
+}
+
+/* Subtítulo/negrito sozinho no parágrafo — sem recuo de primeira linha (como no PDF). */
+.conteudo-rico.prose :where(p):has(> strong:only-child),
+.conteudo-rico p:has(> strong:only-child) {
+    text-indent: 0;
 }
 
 .conteudo-rico.prose :where(li),

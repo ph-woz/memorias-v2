@@ -93,9 +93,10 @@ class EnriquecerHtmlLiteralDoPdf
     {
         $trechos = $this->normalizarListaTrechosNegrito($trechos);
 
-        // Gemini às vezes envolve a mesma frase do subtítulo no meio do parágrafo.
+        // Subtítulos do PDF colados no meio/fim do <p> → blocos próprios, como no PDF.
+        $html = $this->promoverSubtitulosNegritoEmbutidos($html, $trechos);
+        // Gemini às vezes envolve a mesma frase do subtítulo no meio da prosa.
         $html = $this->removerNegritoInlineDeParagrafos($html);
-        $html = $this->promoverSubtitulosNegritoNoFimDoParagrafo($html, $trechos);
 
         if ($trechos === []) {
             return $html;
@@ -167,11 +168,12 @@ class EnriquecerHtmlLiteralDoPdf
     }
 
     /**
-     * Separa subtítulo negrito colado no fim do parágrafo anterior.
+     * Separa subtítulo negrito do PDF embutido no início, meio ou fim de um <p>,
+     * gerando o mesmo ritmo visual do PDF: prosa → subtítulo → prosa.
      *
      * @param  list<string>  $trechos
      */
-    private function promoverSubtitulosNegritoNoFimDoParagrafo(string $html, array $trechos): string
+    private function promoverSubtitulosNegritoEmbutidos(string $html, array $trechos): string
     {
         foreach ($trechos as $trecho) {
             if (mb_strlen($trecho) > 90) {
@@ -180,28 +182,82 @@ class EnriquecerHtmlLiteralDoPdf
 
             $q = preg_quote($trecho, '/');
             $html = (string) preg_replace_callback(
-                '/<p\b([^>]*)>(.*?)(?:\s|<br\s*\/?>)*('.$q.')\s*<\/p>/is',
-                function (array $m) use ($trecho): string {
-                    $antes = trim((string) preg_replace('/(?:<br\s*\/?>\s*)+$/i', '', $m[2]));
-                    $antesTexto = trim(html_entity_decode(strip_tags($antes), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-                    $antesTexto = trim(preg_replace('/\s+/u', ' ', $antesTexto) ?? $antesTexto);
+                '/<p\b([^>]*)>(.*?)<\/p>/is',
+                function (array $m) use ($q, $trecho): string {
+                    $attrs = $m[1];
+                    $interno = $m[2];
 
-                    if ($antesTexto === '' || strcasecmp($antesTexto, $trecho) === 0) {
+                    if (str_contains(strtolower($interno), '<img')) {
                         return $m[0];
                     }
 
-                    if (preg_match('/[.!?)]$|<\/sup>$/iu', $antesTexto) !== 1
-                        && preg_match('/[.!?)](?:\s*<[^>]+>)*\s*$/u', $antes) !== 1) {
+                    $textoCheio = $this->textoPlanoDeHtml($interno);
+
+                    if ($textoCheio === '' || strcasecmp($textoCheio, $trecho) === 0) {
                         return $m[0];
                     }
 
-                    return '<p'.$m[1].'>'.$antes.'</p><p><strong>'.$m[3].'</strong></p>';
+                    if (preg_match(
+                        '/^(.*?)(?:<(?:strong|b)>\s*)?('.$q.')(?:\s*<\/(?:strong|b)>)?(.*)$/is',
+                        $interno,
+                        $partes,
+                    ) !== 1) {
+                        return $m[0];
+                    }
+
+                    $antes = trim((string) preg_replace('/(?:<br\s*\/?>\s*)+$/i', '', $partes[1]));
+                    $depois = trim((string) preg_replace('/^(?:<br\s*\/?>\s*)+/i', '', $partes[3]));
+                    $titulo = $partes[2];
+
+                    $antesTexto = $this->textoPlanoDeHtml($antes);
+                    $depoisTexto = $this->textoPlanoDeHtml($depois);
+
+                    if ($antesTexto === '' && $depoisTexto === '') {
+                        return $m[0];
+                    }
+
+                    // "regarded as target species." → não é quebra de seção.
+                    if ($depoisTexto !== '' && preg_match('/^[.!?]+$/u', $depoisTexto) === 1) {
+                        return $m[0];
+                    }
+
+                    $antesOk = $antesTexto === ''
+                        || preg_match('/[.!?)]$|<\/sup>$/iu', $antesTexto) === 1
+                        || preg_match('/[.!?)](?:\s*<[^>]+>)*\s*$/u', $antes) === 1;
+
+                    $depoisOk = $depoisTexto === ''
+                        || preg_match('/^\p{Lu}/u', $depoisTexto) === 1;
+
+                    if (! $antesOk || ! $depoisOk) {
+                        return $m[0];
+                    }
+
+                    $saida = '';
+
+                    if ($antesTexto !== '') {
+                        $saida .= '<p'.$attrs.'>'.$antes.'</p>';
+                    }
+
+                    $saida .= '<p><strong>'.$titulo.'</strong></p>';
+
+                    if ($depoisTexto !== '') {
+                        $saida .= '<p'.$attrs.'>'.$depois.'</p>';
+                    }
+
+                    return $saida;
                 },
                 $html,
             );
         }
 
         return $html;
+    }
+
+    private function textoPlanoDeHtml(string $html): string
+    {
+        $texto = trim(html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+
+        return trim(preg_replace('/\s+/u', ' ', $texto) ?? $texto);
     }
 
     /**
@@ -249,13 +305,13 @@ class EnriquecerHtmlLiteralDoPdf
     private function garantirEspacosAoRedorDeMarcacao(string $html): string
     {
         $html = preg_replace(
-            '/(\p{L}|\p{N}|[.!?])(<(?:strong|b|em|i|sup|a)\b[^>]*>)/u',
+            '/(\p{L}|\p{N}|[.!?,;:])(<(?:strong|b|em|i|sup|a)\b[^>]*>)/u',
             '$1 $2',
             $html,
         ) ?? $html;
 
         $html = preg_replace(
-            '/(<\/(?:strong|b|em|i|sup|a)>)(\p{L}|\p{N})/u',
+            '/(<\/(?:strong|b|em|i|sup|a)>)(\p{L}|\p{N}|\()/u',
             '$1 $2',
             $html,
         ) ?? $html;
