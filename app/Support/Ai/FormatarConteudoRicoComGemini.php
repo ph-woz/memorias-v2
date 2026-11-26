@@ -158,7 +158,8 @@ class FormatarConteudoRicoComGemini
         }
 
         return <<<PROMPT
-Você é tipógrafo editorial científico. O PDF anexado é a ÚNICA referência visual e textual.
+Você é tipógrafo editorial científico. O PDF anexado é a ÚNICA referência visual e textual
+(ignore SciELO/HTML publicado — tipografia e negrito vêm só do PDF).
 
 Missão: devolver HTML rico do CORPO do artigo (após abstract/keywords; antes de REFERENCES),
 fiel ao PDF — mesmas palavras — com formatação tipográfica completa.

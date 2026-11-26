@@ -10,6 +10,7 @@ use App\Support\Ai\FormatarConteudoRicoComGemini;
 use App\Support\Artigos\EnriquecerHtmlLiteralDoPdf;
 use App\Support\Artigos\ExtrairImagensDoPdf;
 use App\Support\Artigos\ExtrairTextoPdf;
+use App\Support\Artigos\ExtrairTrechosNegritoDoPdf;
 use App\Support\Artigos\MontarArtigoLiteralDoPdf;
 use App\Support\Artigos\ObterHtmlOriginalDoArtigoPorDoi;
 use App\Support\Artigos\PreferirConteudoHtmlOriginal;
@@ -42,6 +43,7 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
         RefinarMetadadosExtracaoPdf $refinarMetadados,
         MontarArtigoLiteralDoPdf $montarLiteral,
         ExtrairImagensDoPdf $extrairImagens,
+        ExtrairTrechosNegritoDoPdf $extrairNegritoPdf,
         FormatarConteudoRicoComGemini $formatarRico,
         EnriquecerHtmlLiteralDoPdf $enriquecerHtml,
         ObterHtmlOriginalDoArtigoPorDoi $obterHtmlOriginal,
@@ -101,21 +103,23 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
         $extracao = $montarLiteral->montar($textoPdf, $metadados);
         $extracao = $this->enriquecerCamposMetadadoHtml($extracao, $enriquecerHtml);
 
-        $this->importacao->atualizarProgresso(65, 'Extraindo imagens do PDF...');
+        $this->importacao->atualizarProgresso(65, 'Extraindo imagens e tipografia do PDF...');
         $imagens = $extrairImagens->deCaminhoPublico($this->importacao->pdf_path);
+        $trechosNegritoPdf = $extrairNegritoPdf->deCaminhoPublico($this->importacao->pdf_path);
 
         $this->importacao->atualizarProgresso(75, 'Formatando tipografia rica a partir do PDF...');
         $extracao = $this->aplicarTipografiaRica(
             $extracao,
             $textoPdf,
             $imagens,
+            $trechosNegritoPdf,
             $provider,
             $modelGemini,
             $formatarRico,
             $enriquecerHtml,
         );
 
-        $this->importacao->atualizarProgresso(85, 'Buscando HTML original publicado (SciELO/Memórias)...');
+        $this->importacao->atualizarProgresso(85, 'Enriquecendo metadados do HTML publicado (sem substituir o corpo do PDF)...');
         $extracao = $this->preferirHtmlPublicadoSeCompativel(
             $extracao,
             $textoPdf,
@@ -123,6 +127,7 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
             $preferirHtmlOriginal,
             $enriquecerHtml,
             $imagens,
+            $trechosNegritoPdf,
         );
 
         $this->importacao->atualizarProgresso(90, 'Criando rascunho do artigo...');
@@ -133,19 +138,21 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
     /**
      * @param  array<string, mixed>  $extracao
      * @param  list<array{path: string, url: string, alt?: string}>  $imagens
+     * @param  list<string>  $trechosNegritoPdf
      * @return array<string, mixed>
      */
     private function aplicarTipografiaRica(
         array $extracao,
         string $textoPdf,
         array $imagens,
+        array $trechosNegritoPdf,
         string $provider,
         string $modelGemini,
         FormatarConteudoRicoComGemini $formatarRico,
         EnriquecerHtmlLiteralDoPdf $enriquecerHtml,
     ): array {
         $conteudoBase = (string) ($extracao['conteudo_html'] ?? '');
-        $htmlLocal = $enriquecerHtml->polir($conteudoBase, $imagens);
+        $htmlLocal = $enriquecerHtml->polir($conteudoBase, $imagens, $trechosNegritoPdf);
         $htmlFinal = $htmlLocal;
 
         if ($provider === 'gemini') {
@@ -160,7 +167,7 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
                 $htmlGemini = trim((string) ($rico['conteudo_html'] ?? ''));
 
                 if ($htmlGemini !== '' && $this->htmlRicoPreferivelAoLocal($htmlGemini, $htmlLocal)) {
-                    $htmlFinal = $enriquecerHtml->polir($htmlGemini, $imagens);
+                    $htmlFinal = $enriquecerHtml->polir($htmlGemini, $imagens, $trechosNegritoPdf);
 
                     if (filled($rico['resumo_html'])) {
                         $resumoHtml = $enriquecerHtml->polirCampoRico((string) $rico['resumo_html']);
@@ -221,6 +228,7 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
     /**
      * @param  array<string, mixed>  $extracao
      * @param  list<array{path: string, url: string, alt?: string}>  $imagens
+     * @param  list<string>  $trechosNegritoPdf
      * @return array<string, mixed>
      */
     private function preferirHtmlPublicadoSeCompativel(
@@ -230,6 +238,7 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
         PreferirConteudoHtmlOriginal $preferirHtmlOriginal,
         EnriquecerHtmlLiteralDoPdf $enriquecerHtml,
         array $imagens,
+        array $trechosNegritoPdf = [],
     ): array {
         $doi = trim((string) ($extracao['doi'] ?? ''));
 
@@ -244,18 +253,14 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
                 return $extracao;
             }
 
+            // Metadados do portal; corpo tipográfico permanece o do PDF.
             $mesclado = $preferirHtmlOriginal->preferir($extracao, $htmlOriginal, $textoPdf);
 
-            // Mesmo sem corpo HTML editorial, metadados (autor correspondente etc.) podem ter vindo do portal.
-            if (($mesclado['fonte_conteudo'] ?? null) === null) {
-                return $this->enriquecerCamposMetadadoHtml($mesclado, $enriquecerHtml);
-            }
-
-            // SciELO/Memórias às vezes perdem negrito de subtítulos; polir reaplica tipografia
-            // e ainda injeta figuras do PDF ausentes no HTML publicado.
+            // Garante negrito/imagens do PDF no corpo (nunca troca o corpo pelo SciELO).
             $mesclado['conteudo_html'] = $enriquecerHtml->polir(
                 (string) ($mesclado['conteudo_html'] ?? ''),
                 $imagens,
+                $trechosNegritoPdf,
             );
 
             return $this->enriquecerCamposMetadadoHtml($mesclado, $enriquecerHtml);

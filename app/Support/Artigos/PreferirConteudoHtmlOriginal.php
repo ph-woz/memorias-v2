@@ -3,8 +3,8 @@
 namespace App\Support\Artigos;
 
 /**
- * Quando existe HTML editorial publicado (SciELO/Memórias), prefere esse conteúdo
- * ao texto reconstruído do PDF — mantendo fidelidade verificada contra o PDF.
+ * Enriquece metadados a partir do HTML publicado (SciELO/Memórias),
+ * sem substituir o corpo tipográfico — o PDF é a referência de conteúdo/formatação.
  */
 class PreferirConteudoHtmlOriginal
 {
@@ -18,23 +18,16 @@ class PreferirConteudoHtmlOriginal
         $mesclado = $extracaoPdf;
 
         // Metadados editoriais (autor correspondente, instituições) podem vir do HTML
-        // mesmo quando o corpo só existe no PDF.
+        // mesmo quando o corpo tipográfico vem do PDF.
         $this->mesclarCamposMetadado($mesclado, $extracaoHtml, $textoPdf);
-
-        $htmlCorpo = trim((string) ($extracaoHtml['conteudo_html'] ?? ''));
-        $pdfCorpo = trim((string) ($extracaoPdf['conteudo_html'] ?? ''));
-
-        if ($htmlCorpo === '' || ! $this->corpoHtmlCompativelComPdf($htmlCorpo, $textoPdf, $pdfCorpo)) {
-            return $mesclado;
-        }
-
-        $mesclado['conteudo_html'] = $htmlCorpo;
-        $mesclado['fonte_conteudo'] = (string) ($extracaoHtml['fonte'] ?? 'html_original');
-        $mesclado['html_origem_url'] = $extracaoHtml['html_origem_url'] ?? null;
 
         $resumoHtml = trim((string) ($extracaoHtml['resumo'] ?? ''));
         if ($resumoHtml !== '' && $this->trechoExisteNoPdf($resumoHtml, $textoPdf)) {
-            $mesclado['resumo'] = $resumoHtml;
+            $resumoPdf = trim((string) ($mesclado['resumo'] ?? ''));
+            // Portal pode enriquecer o resumo com HTML; o corpo do artigo continua sendo o do PDF.
+            if ($resumoPdf === '' || str_contains($resumoHtml, '<')) {
+                $mesclado['resumo'] = $resumoHtml;
+            }
         }
 
         $refs = $extracaoHtml['referencias'] ?? null;
@@ -45,6 +38,12 @@ class PreferirConteudoHtmlOriginal
         $keywords = $extracaoHtml['palavras_chave'] ?? null;
         if (is_array($keywords) && $keywords !== [] && empty($mesclado['palavras_chave'])) {
             $mesclado['palavras_chave'] = $keywords;
+        }
+
+        // Corpo (conteudo_html) permanece o do PDF. Portal só informa origem dos metadados.
+        if (trim((string) ($extracaoHtml['conteudo_html'] ?? '')) !== '') {
+            $mesclado['fonte_metadados'] = (string) ($extracaoHtml['fonte'] ?? 'html_original');
+            $mesclado['html_origem_url'] = $extracaoHtml['html_origem_url'] ?? null;
         }
 
         return $mesclado;
@@ -90,33 +89,6 @@ class PreferirConteudoHtmlOriginal
         return mb_strlen($candidatoPlano) > mb_strlen($atualPlano) + 20;
     }
 
-    private function corpoHtmlCompativelComPdf(string $htmlCorpo, string $textoPdf, string $pdfCorpoHtml): bool
-    {
-        $htmlTexto = $this->normalizar($htmlCorpo);
-        $pdfTexto = $this->normalizar($textoPdf);
-        $pdfCorpo = $this->normalizar($pdfCorpoHtml);
-
-        if (mb_strlen($htmlTexto) < 400) {
-            return false;
-        }
-
-        $inicioHtml = mb_substr($htmlTexto, 0, 64);
-        $inicioNoPdf = $inicioHtml !== '' && mb_stripos($pdfTexto, $inicioHtml) !== false;
-        $inicioNoCorpoPdf = $inicioHtml !== '' && mb_stripos($pdfCorpo, mb_substr($inicioHtml, 0, 40)) !== false;
-
-        if (! $inicioNoPdf && ! $inicioNoCorpoPdf) {
-            return false;
-        }
-
-        $tagsHtml = preg_match_all('/<(em|i|sup|strong)\b/i', $htmlCorpo);
-        $tagsPdf = preg_match_all('/<(em|i|sup|strong)\b/i', $pdfCorpoHtml);
-        $tamanhoOk = mb_strlen($htmlTexto) >= (int) floor(max(400, mb_strlen($pdfCorpo) * 0.55));
-        $tipografiaOk = $tagsHtml >= 15 && $tagsHtml >= (int) floor($tagsPdf * 0.5);
-
-        // Prefere o HTML publicado quando cobre bem o texto e já traz tipografia editorial.
-        return $tamanhoOk || $tipografiaOk;
-    }
-
     private function trechoExisteNoPdf(string $trecho, string $textoPdf): bool
     {
         $trecho = $this->normalizar($trecho);
@@ -153,7 +125,6 @@ class PreferirConteudoHtmlOriginal
             }
         }
 
-        // Bloco correspondente: amostra pelo e-mail + ORCID/Accepted quando o início diverge.
         if (
             preg_match('/[^\s<>]+@[^\s<>]+\.[^\s<>]+/u', $trecho, $email) === 1
             && mb_stripos($pdf, $email[0]) !== false

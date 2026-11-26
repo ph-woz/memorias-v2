@@ -13,18 +13,20 @@ class EnriquecerHtmlLiteralDoPdf
 {
     /**
      * @param  list<array{path: string, url: string, alt?: string}>  $imagens
+     * @param  list<string>  $trechosNegritoPdf
      */
-    public function enriquecer(string $html, array $imagens = []): string
+    public function enriquecer(string $html, array $imagens = [], array $trechosNegritoPdf = []): string
     {
-        return $this->polir($html, $imagens);
+        return $this->polir($html, $imagens, $trechosNegritoPdf);
     }
 
     /**
      * Polimento final (Gemini ou fallback): tipografia + parágrafos + imagens.
      *
      * @param  list<array{path: string, url: string, alt?: string}>  $imagens
+     * @param  list<string>  $trechosNegritoPdf  Frases detectadas como negrito nas fontes do PDF
      */
-    public function polir(string $html, array $imagens = []): string
+    public function polir(string $html, array $imagens = [], array $trechosNegritoPdf = []): string
     {
         $html = trim($html);
 
@@ -41,6 +43,7 @@ class EnriquecerHtmlLiteralDoPdf
 
         $html = $this->garantirParagrafos($html);
         $html = $this->removerParagrafosVazios($html);
+        $html = $this->aplicarTrechosNegritoDoPdf($html, $trechosNegritoPdf);
         $html = $this->repartirParagrafosLongos($html);
         $html = $this->aplicarTipografiaPreservandoTags($html);
         $html = $this->removerTitulosSecaoDuplicados($html);
@@ -48,6 +51,39 @@ class EnriquecerHtmlLiteralDoPdf
         $html = $this->inserirImagens($html, $imagens);
 
         return trim($html);
+    }
+
+    /**
+     * Aplica <strong> a trechos que o PDF marca em fonte negrito.
+     *
+     * @param  list<string>  $trechos
+     */
+    private function aplicarTrechosNegritoDoPdf(string $html, array $trechos): string
+    {
+        if ($trechos === []) {
+            return $html;
+        }
+
+        return $this->mapearTextoForaDeTipografia($html, function (string $chunk) use ($trechos): string {
+            foreach ($trechos as $trecho) {
+                if ($trecho === '' || mb_strlen($trecho) < 6) {
+                    continue;
+                }
+
+                if (mb_stripos($chunk, $trecho) === false) {
+                    continue;
+                }
+
+                $chunk = preg_replace(
+                    '/'.preg_quote($trecho, '/').'/iu',
+                    '<strong>$0</strong>',
+                    $chunk,
+                    1,
+                ) ?? $chunk;
+            }
+
+            return $chunk;
+        });
     }
 
     private function removerParagrafosVazios(string $html): string

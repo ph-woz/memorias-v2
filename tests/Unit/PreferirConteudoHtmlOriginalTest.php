@@ -7,14 +7,19 @@ use PHPUnit\Framework\TestCase;
 
 class PreferirConteudoHtmlOriginalTest extends TestCase
 {
-    public function test_prefere_html_publicado_quando_compativel_com_pdf(): void
+    public function test_mantem_corpo_do_pdf_e_mescla_metadados_do_portal(): void
     {
         $textoPdf = 'Despite the great achievements in controlling Chagas disease, also known as American Trypanosomiasis, '
             .'major problems remain. The most effective action is the elimination of Triatoma infestans vectors. '
-            .str_repeat('Continuacao fiel do texto original. ', 30);
+            .str_repeat('Continuacao fiel do texto original. ', 30)
+            .' Laboratório de Biologia, Fundação Oswaldo Cruz-Fiocruz, Rio de Janeiro, RJ, Brasil'
+            .' Corresponding author: jcosta@ioc.fiocruz.br';
+
+        $pdfCorpo = '<p><strong>Triatominae until 1979</strong></p>'
+            .'<p>Despite the great achievements in controlling Chagas disease, also known as American Trypanosomiasis, major problems remain.</p>';
 
         $pdf = [
-            'conteudo_html' => '<p>Despite the great achievements in controlling Chagas disease, also known as American Trypanosomiasis, major problems remain.</p>',
+            'conteudo_html' => $pdfCorpo,
             'resumo' => 'Resumo curto do pdf',
             'endereco_instituicoes' => 'Instituicao do PDF',
             'autor_correspondente' => 'Autor PDF',
@@ -25,6 +30,7 @@ class PreferirConteudoHtmlOriginalTest extends TestCase
         $html = [
             'conteudo_html' => '<p>Despite the great achievements in controlling Chagas disease, also known as American Trypanosomiasis, major problems remain.<sup>(2)</sup></p>'
                 .'<p>The most effective action is the elimination of <em>Triatoma infestans</em> vectors.</p>'
+                .'<p>Triatominae until 1979</p>'
                 .str_repeat('<p>Continuacao fiel do texto original.</p>', 20),
             'resumo' => '<p>Despite the great achievements in controlling Chagas disease abstract text for validation against pdf source document here.</p>',
             'endereco_instituicoes' => '<p><sup>1</sup> Laboratório de Biologia, Fundação Oswaldo Cruz-Fiocruz, Rio de Janeiro, RJ, Brasil</p>',
@@ -35,13 +41,13 @@ class PreferirConteudoHtmlOriginalTest extends TestCase
             'palavras_chave' => ['vectors'],
         ];
 
-        $textoPdf .= ' Laboratório de Biologia, Fundação Oswaldo Cruz-Fiocruz, Rio de Janeiro, RJ, Brasil'
-            .' Corresponding author: jcosta@ioc.fiocruz.br';
-
         $resultado = (new PreferirConteudoHtmlOriginal)->preferir($pdf, $html, $textoPdf);
 
-        $this->assertSame('scielo', $resultado['fonte_conteudo']);
-        $this->assertStringContainsString('<em>Triatoma infestans</em>', $resultado['conteudo_html']);
+        $this->assertSame($pdfCorpo, $resultado['conteudo_html']);
+        $this->assertArrayNotHasKey('fonte_conteudo', $resultado);
+        $this->assertSame('scielo', $resultado['fonte_metadados']);
+        $this->assertStringContainsString('<strong>Triatominae until 1979</strong>', $resultado['conteudo_html']);
+        $this->assertStringNotContainsString('<p>Triatominae until 1979</p>', $resultado['conteudo_html']);
         $this->assertStringContainsString('<p>', (string) $resultado['resumo']);
         $this->assertStringContainsString('<em>jcosta@ioc.fiocruz.br</em>', (string) $resultado['autor_correspondente']);
         $this->assertStringContainsString('Fundação Oswaldo Cruz-Fiocruz', strip_tags((string) $resultado['endereco_instituicoes']));

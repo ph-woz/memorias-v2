@@ -155,11 +155,14 @@ class FidelidadeImportacaoPortalRegressionTest extends TestCase
                 $this->assertDoesNotMatchRegularExpression('/^(?:\[\d{1,3}\]|\d{1,3}[.)])\s+/u', (string) $ref);
             }
 
-            $corpo = (string) ($mesclado['conteudo_html'] ?? '');
-            if ($caso['citacao'] !== null) {
-                $this->assertMatchesRegularExpression($caso['citacao'], $corpo, "{$id} citação");
-            }
+            // Corpo tipográfico permanece o do PDF; portal só enriquece metadados/refs.
+            $this->assertSame(
+                (string) ($montado['conteudo_html'] ?? ''),
+                (string) ($mesclado['conteudo_html'] ?? ''),
+                "{$id} não pode substituir o corpo do PDF pelo HTML do portal",
+            );
 
+            $corpo = (string) ($mesclado['conteudo_html'] ?? '');
             $this->assertDoesNotMatchRegularExpression('/<sup>\([^)]*(?:17|18|19|20)\d{2}/', $corpo);
             $this->assertSame(
                 $corpo === '' ? '' : (new NormalizarCitacoesNoHtml)->normalizar($corpo),
