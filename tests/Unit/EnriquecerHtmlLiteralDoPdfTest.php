@@ -68,6 +68,31 @@ class EnriquecerHtmlLiteralDoPdfTest extends TestCase
         $this->assertStringNotContainsString('epidemiol- ogy', $resultado);
     }
 
+    public function test_nao_insere_nem_mantem_print_de_pagina_de_texto(): void
+    {
+        $html = '<p>Valid species and the importance of integrative analysis.</p>'
+            .'<p style="text-align:center"><img src="/storage/artigos/conteudo/x/pagina-2.jpg" alt="pagina-2"></p>'
+            .'<p>More literal body text about Triatoma infestans. (2)</p>';
+
+        $resultado = (new EnriquecerHtmlLiteralDoPdf)->polir($html, [
+            [
+                'path' => 'artigos/conteudo/x/pagina-3.jpg',
+                'url' => '/storage/artigos/conteudo/x/pagina-3.jpg',
+                'alt' => 'pagina-3',
+            ],
+            [
+                'path' => 'artigos/conteudo/x/fig-1.jpg',
+                'url' => '/storage/artigos/conteudo/x/fig-1.jpg',
+                'alt' => 'fig-1',
+            ],
+        ]);
+
+        $this->assertStringNotContainsString('pagina-2.jpg', $resultado);
+        $this->assertStringNotContainsString('pagina-3.jpg', $resultado);
+        $this->assertStringContainsString('fig-1.jpg', $resultado);
+        $this->assertStringContainsString('<em>Triatoma infestans</em>', $resultado);
+    }
+
     public function test_polir_campo_rico_converte_texto_e_preserva_html(): void
     {
         $enriquecedor = new EnriquecerHtmlLiteralDoPdf;

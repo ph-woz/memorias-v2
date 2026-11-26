@@ -171,10 +171,11 @@ REGRAS ABSOLUTAS:
 5. Títulos de seção do PDF em <h2>…</h2>.
 6. Citações no texto SOMENTE como <sup>(2)</sup> ou <sup>(3, 4, 5)</sup> — só os números da referência. NUNCA coloque anos, volumes, páginas nem texto bibliográfico dentro do <sup>.
 7. Negritos do PDF em <strong>.
-8. Figuras/tabelas: use as URLs listadas abaixo com <p style="text-align:center"><img src="URL" alt="…"></p> no ponto do PDF em que aparecem.
-9. Não inclua cabeçalho da revista, autores, abstract, key words nem REFERENCES no conteudo_html.
-10. resumo_html = abstract literal com a mesma marcação (<em>, <sup>).
-11. Prefira dezenas de <p> a poucos <p> longos — legibilidade tipográfica é obrigatória.
+8. Figuras reais: use SOMENTE as URLs listadas abaixo com <p style="text-align:center"><img src="URL" alt="…"></p> no ponto do PDF em que a figura aparece.
+9. PROIBIDO embutir print/screenshot de página de texto (mesmo visualmente igual ao PDF). Texto vai só em HTML (<p>, <h2>, <em>…), nunca como <img> de página.
+10. Não inclua cabeçalho da revista, autores, abstract, key words nem REFERENCES no conteudo_html.
+11. resumo_html = abstract literal com a mesma marcação (<em>, <sup>).
+12. Prefira dezenas de <p> a poucos <p> longos — legibilidade tipográfica é obrigatória.
 
 Imagens disponíveis (use o src exato):
 {$listaImagens}

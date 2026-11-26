@@ -5,12 +5,12 @@ namespace App\Support\Artigos;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Imagick;
-use ImagickException;
 use ImagickPixel;
 use Throwable;
 
 /**
- * Extrai figuras embutidas (JPEG/PNG/FlateDecode) do PDF e, se necessário, páginas rasterizadas.
+ * Extrai apenas figuras embutidas (JPEG/PNG/FlateDecode) do PDF.
+ * Não rasteriza páginas inteiras — isso duplicava o texto como "print".
  *
  * @phpstan-type ImagemExtraida array{path: string, url: string, alt: string, bytes: int, mime?: string}
  */
@@ -25,18 +25,11 @@ class ExtrairImagensDoPdf
             return [];
         }
 
-        $absoluto = Storage::disk('public')->path($caminhoPdfPublico);
-        $binario = (string) file_get_contents($absoluto);
+        $binario = (string) file_get_contents(Storage::disk('public')->path($caminhoPdfPublico));
         $diretorio = 'artigos/conteudo/'.Str::uuid()->toString();
 
         $imagens = $this->extrairStreamsRaster($binario, $diretorio);
         $imagens = array_merge($imagens, $this->extrairImagensFlateDecode($binario, $diretorio));
-
-        // Sempre complementa com páginas rasterizadas quando há poucas figuras reais
-        // (PDFs Memórias usam muito desenho vetorial / CMYK Flate).
-        if (count($imagens) < 3) {
-            $imagens = array_merge($imagens, $this->rasterizarPaginasComFiguras($absoluto, $diretorio));
-        }
 
         return $this->filtrarDuplicatas($imagens);
     }
@@ -213,60 +206,6 @@ class ExtrairImagensDoPdf
         } catch (Throwable) {
             return null;
         }
-    }
-
-    /**
-     * @return list<ImagemExtraida>
-     */
-    private function rasterizarPaginasComFiguras(string $caminhoAbsoluto, string $diretorio): array
-    {
-        if (! class_exists(Imagick::class)) {
-            return [];
-        }
-
-        try {
-            $pdf = new Imagick;
-            $pdf->setResolution(140, 140);
-            $pdf->readImage($caminhoAbsoluto);
-        } catch (ImagickException|Throwable) {
-            return [];
-        }
-
-        $imagens = [];
-        $pagina = 0;
-        $total = $pdf->getNumberImages();
-
-        foreach ($pdf as $frame) {
-            $pagina++;
-
-            // Capa e última página de refs costumam ser pouco úteis como figura.
-            if ($pagina === 1 || ($total > 3 && $pagina === $total)) {
-                continue;
-            }
-
-            try {
-                $frame->setImageFormat('jpeg');
-                $frame->setImageCompressionQuality(82);
-                $blob = $frame->getImageBlob();
-            } catch (Throwable) {
-                continue;
-            }
-
-            if (strlen($blob) < 20_000) {
-                continue;
-            }
-
-            $imagens[] = $this->gravar($diretorio, 'pagina-'.$pagina.'.jpg', $blob, 'image/jpeg');
-
-            if (count($imagens) >= 6) {
-                break;
-            }
-        }
-
-        $pdf->clear();
-        $pdf->destroy();
-
-        return $imagens;
     }
 
     /**

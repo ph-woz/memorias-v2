@@ -42,6 +42,7 @@ class EnriquecerHtmlLiteralDoPdf
         $html = $this->garantirParagrafos($html);
         $html = $this->repartirParagrafosLongos($html);
         $html = $this->aplicarTipografiaPreservandoTags($html);
+        $html = $this->removerPrintsDePagina($html);
         $html = $this->inserirImagens($html, $imagens);
 
         return trim($html);
@@ -513,6 +514,44 @@ class EnriquecerHtmlLiteralDoPdf
     }
 
     /**
+     * Remove prints de página inteira (pagina-N.jpg) que duplicam o texto já presente.
+     */
+    private function removerPrintsDePagina(string $html): string
+    {
+        $html = (string) preg_replace(
+            '/<figure\b[^>]*>\s*<img\b[^>]*(?:src|alt)=["\'][^"\']*pagina-\d+\.(?:jpe?g|png|webp)[^"\']*["\'][^>]*>.*?<\/figure>/is',
+            '',
+            $html,
+        );
+        $html = (string) preg_replace(
+            '/<p\b[^>]*>\s*<img\b[^>]*(?:src|alt)=["\'][^"\']*pagina-\d+\.(?:jpe?g|png|webp)[^"\']*["\'][^>]*>\s*<\/p>/is',
+            '',
+            $html,
+        );
+        $html = (string) preg_replace(
+            '/<img\b[^>]*(?:src|alt)=["\'][^"\']*pagina-\d+\.(?:jpe?g|png|webp)[^"\']*["\'][^>]*>/is',
+            '',
+            $html,
+        );
+
+        return trim(preg_replace("/\n{3,}/", "\n\n", $html) ?? $html);
+    }
+
+    /**
+     * @param  array{path?: string, url?: string, alt?: string}  $imagem
+     */
+    private function ehPrintDePagina(array $imagem): bool
+    {
+        $chave = implode(' ', [
+            (string) ($imagem['path'] ?? ''),
+            (string) ($imagem['url'] ?? ''),
+            (string) ($imagem['alt'] ?? ''),
+        ]);
+
+        return preg_match('/pagina-\d+/i', $chave) === 1;
+    }
+
+    /**
      * @param  list<array{path: string, url: string, alt?: string}>  $imagens
      */
     private function inserirImagens(string $html, array $imagens): string
@@ -526,7 +565,7 @@ class EnriquecerHtmlLiteralDoPdf
         foreach ($imagens as $imagem) {
             $url = (string) ($imagem['url'] ?? '');
 
-            if ($url === '' || str_contains($html, $url)) {
+            if ($url === '' || str_contains($html, $url) || $this->ehPrintDePagina($imagem)) {
                 continue;
             }
 

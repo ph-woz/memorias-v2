@@ -245,7 +245,98 @@ TXT.str_repeat(' Continuacao fiel do texto do autor.', 25)."\nREFERENCES\n1. Len
             ]);
     }
 
-    private function processarImportacao(ArtigoImportacao $importacao): void
+    public function test_job_nao_duplica_texto_como_print_de_pagina(): void
+    {
+        Storage::fake('public');
+
+        $usuario = User::factory()->create();
+        $caminho = 'artigos/importacoes/teste-sem-print.pdf';
+        Storage::disk('public')->put($caminho, '%PDF-1.4 fake');
+
+        $importacao = ArtigoImportacao::factory()->create([
+            'user_id' => $usuario->id,
+            'pdf_path' => $caminho,
+            'pdf_nome_original' => 'memoria.pdf',
+            'status' => StatusImportacaoArtigo::Pendente,
+        ]);
+
+        $textoPdf = <<<'TXT'
+Mem Inst Oswaldo Cruz, Rio de Janeiro, Vol. 116: e210015, 2021
+REVIEW
+Do the new triatomine species pose new challenges or strategies for monitoring Chagas disease? An overview from 1979-2021
+Jane Costa
+1
+, Carolina Dale
+1
+1
+Fundação Oswaldo Cruz-Fiocruz, Instituto Oswaldo Cruz, Rio de Janeiro, RJ, Brasil
+5
+Institut de Recherche pour le Développement, Montpellier, France
+Chagas disease persists as one of the most important, and yet most neglected, diseases in the world, and several changes in its epidemiological aspects have been recorded since its discovery.
+Key words: American Trypanosomiasis - vectors - Triatominae subfamily
+doi: 10.1590/0074-02760210015
++ Corresponding author: jcosta@ioc.fiocruz.br
+Accepted 04 May 2021
+Despite the great achievements in controlling Chagas disease, also known as American Trypanosomiasis, major problems remain. (2) Vectors such as Triatoma infestans and Rhodnius prolixus continue to challenge control programs.
+Valid species and the importance of integrative analysis
+TXT.str_repeat(' Continuacao fiel do texto do autor.', 25)."\nREFERENCES\n1. Lent H, Wygodzinsky P. Revision. 1979.";
+
+        $this->mock(ExtrairTextoPdf::class, function ($mock) use ($textoPdf): void {
+            $mock->shouldReceive('deCaminhoPublico')->once()->andReturn($textoPdf);
+        });
+
+        $gemini = Mockery::mock(ExtrairArtigoComGemini::class);
+        $gemini->shouldReceive('extrairMetadados')->once()->andThrow(new \RuntimeException('Falha na API Gemini: HTTP 503'));
+        $this->app->instance(ExtrairArtigoComGemini::class, $gemini);
+
+        config(['ai.default' => 'gemini']);
+
+        $this->mock(FormatarConteudoRicoComGemini::class, function ($mock): void {
+            $mock->shouldReceive('formatarComFallback')->once()->andReturn([
+                'conteudo_html' => '<p>Despite the great achievements in controlling Chagas disease, also known as American Trypanosomiasis, major problems remain. (2) Vectors such as Triatoma infestans and Rhodnius prolixus continue to challenge control programs.</p>'
+                    .'<p style="text-align:center"><img src="/storage/artigos/conteudo/x/pagina-2.jpg" alt="pagina-2"></p>'
+                    .'<p>Valid species and the importance of integrative analysis</p>',
+                'resumo_html' => '<p>Chagas disease persists as one of the most important, and yet most neglected, diseases in the world.</p>',
+            ]);
+        });
+
+        $this->processarImportacao($importacao, [
+            [
+                'path' => 'artigos/conteudo/x/pagina-2.jpg',
+                'url' => '/storage/artigos/conteudo/x/pagina-2.jpg',
+                'alt' => 'pagina-2',
+                'bytes' => 80_000,
+            ],
+            [
+                'path' => 'artigos/conteudo/x/pagina-3.jpg',
+                'url' => '/storage/artigos/conteudo/x/pagina-3.jpg',
+                'alt' => 'pagina-3',
+                'bytes' => 70_000,
+            ],
+            [
+                'path' => 'artigos/conteudo/x/fig-1.jpg',
+                'url' => '/storage/artigos/conteudo/x/fig-1.jpg',
+                'alt' => 'fig-1',
+                'bytes' => 12_000,
+            ],
+        ]);
+
+        $artigo = Artigo::query()->firstOrFail();
+
+        $this->assertSame(StatusImportacaoArtigo::Concluida, $importacao->fresh()->status);
+        $this->assertStringContainsString('Despite the great achievements', $artigo->conteudo);
+        $this->assertStringContainsString('Valid species and the importance of integrative analysis', $artigo->conteudo);
+        $this->assertStringContainsString('<em>Triatoma infestans</em>', $artigo->conteudo);
+        $this->assertStringContainsString('fig-1.jpg', $artigo->conteudo);
+        $this->assertStringNotContainsString('pagina-2.jpg', $artigo->conteudo);
+        $this->assertStringNotContainsString('pagina-3.jpg', $artigo->conteudo);
+        $this->assertDoesNotMatchRegularExpression('/<img[^>]+pagina-\d+/i', $artigo->conteudo);
+    }
+
+    /**
+     * @param  list<array{path: string, url: string, alt?: string, bytes?: int}>|null  $imagensExtraidas
+     */
+    private function processarImportacao(ArtigoImportacao $importacao, ?array $imagensExtraidas = null): void
     {
         Http::fake([
             'api.crossref.org/*' => Http::response(['status' => 'ok', 'message' => []], 200),
@@ -254,7 +345,7 @@ TXT.str_repeat(' Continuacao fiel do texto do autor.', 25)."\nREFERENCES\n1. Len
         ]);
 
         $imagens = Mockery::mock(ExtrairImagensDoPdf::class);
-        $imagens->shouldReceive('deCaminhoPublico')->andReturn([
+        $imagens->shouldReceive('deCaminhoPublico')->andReturn($imagensExtraidas ?? [
             [
                 'path' => 'artigos/conteudo/fig-1.jpg',
                 'url' => '/storage/artigos/conteudo/fig-1.jpg',
