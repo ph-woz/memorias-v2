@@ -23,7 +23,7 @@
                     @click.outside="aberto = false"
                     :aria-expanded="aberto.toString()"
                 >
-                    <span>{{ $item->rotulo }}</span>
+                    <span>{{ __($item->rotulo) }}</span>
                     <svg class="size-3.5 transition" :class="aberto ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
                     </svg>
@@ -42,7 +42,7 @@
                                 @if ($filho->target_blank) target="_blank" rel="noopener noreferrer" @endif
                                 class="block px-4 py-2 text-sm text-ink/80 transition hover:bg-ink/5 hover:text-ink"
                             >
-                                {{ $filho->rotulo }}
+                                {{ __($filho->rotulo) }}
                             </a>
                         @endif
                     @endforeach
@@ -55,7 +55,7 @@
                 :class="{{ $corLink }}"
                 @if ($item->target_blank) target="_blank" rel="noopener noreferrer" @endif
             >
-                {{ $item->rotulo }}
+                {{ __($item->rotulo) }}
             </a>
         @endif
     @endforeach
@@ -93,7 +93,7 @@
                             class="flex w-full items-center justify-between py-2 text-left text-sm font-medium text-ink"
                             @click="subAberto = !subAberto"
                         >
-                            <span>{{ $item->rotulo }}</span>
+                            <span>{{ __($item->rotulo) }}</span>
                             <svg class="size-4 transition" :class="subAberto ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>
                         </button>
                         <div x-show="subAberto" x-cloak class="space-y-1 pb-2 pl-3">
@@ -104,7 +104,7 @@
                                         @if ($filho->target_blank) target="_blank" rel="noopener noreferrer" @endif
                                         class="block py-1.5 text-sm text-ink/70"
                                     >
-                                        {{ $filho->rotulo }}
+                                        {{ __($filho->rotulo) }}
                                     </a>
                                 @endif
                             @endforeach
@@ -116,7 +116,7 @@
                         @if ($item->target_blank) target="_blank" rel="noopener noreferrer" @endif
                         class="border-b border-ink/5 py-3 text-sm font-medium text-ink"
                     >
-                        {{ $item->rotulo }}
+                        {{ __($item->rotulo) }}
                     </a>
                 @endif
             @endforeach

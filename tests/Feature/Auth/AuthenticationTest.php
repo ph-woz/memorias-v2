@@ -63,6 +63,29 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_login_invalido_exibe_mensagem_traduzida_no_idioma_atual(): void
+    {
+        $user = User::factory()->create();
+        $sessionKey = (string) config('localization.session_key');
+
+        $casos = [
+            'en_US' => 'These credentials do not match our records.',
+            'es_ES' => 'Estas credenciales no coinciden con nuestros registros.',
+            'pt_BR' => 'Estas credenciais não correspondem aos nossos registros.',
+        ];
+
+        foreach ($casos as $idioma => $mensagem) {
+            $this->withSession([$sessionKey => $idioma])
+                ->post('/login', [
+                    'login' => $user->email,
+                    'password' => 'wrong-password',
+                ])
+                ->assertSessionHasErrors([
+                    'login' => $mensagem,
+                ]);
+        }
+    }
+
     public function test_users_can_logout(): void
     {
         $user = User::factory()->create();

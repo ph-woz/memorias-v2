@@ -12,10 +12,10 @@ enum StatusImportacaoArtigo: string
     public function label(): string
     {
         return match ($this) {
-            self::Pendente => 'Pendente',
-            self::Processando => 'Processando',
-            self::Concluida => 'Concluída',
-            self::Falhou => 'Falhou',
+            self::Pendente => __('Pendente'),
+            self::Processando => __('Processando'),
+            self::Concluida => __('Concluída'),
+            self::Falhou => __('Falhou'),
         };
     }
 

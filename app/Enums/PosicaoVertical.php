@@ -11,9 +11,9 @@ enum PosicaoVertical: string
     public function label(): string
     {
         return match ($this) {
-            self::Topo => 'Topo',
-            self::Centro => 'Centro',
-            self::Baixo => 'Baixo',
+            self::Topo => __('Topo'),
+            self::Centro => __('Centro'),
+            self::Baixo => __('Baixo'),
         };
     }
 

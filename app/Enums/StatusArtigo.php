@@ -10,8 +10,8 @@ enum StatusArtigo: string
     public function label(): string
     {
         return match ($this) {
-            self::Rascunho => 'Rascunho',
-            self::Publicado => 'Publicado',
+            self::Rascunho => __('Rascunho'),
+            self::Publicado => __('Publicado'),
         };
     }
 }

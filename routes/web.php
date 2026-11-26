@@ -7,6 +7,7 @@ use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EtiquetaController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\IdiomaController;
 use App\Http\Controllers\MenuItemController;
 use App\Http\Controllers\PaginaController;
 use App\Http\Controllers\PalavraChaveController;
@@ -19,6 +20,8 @@ use App\Http\Controllers\Site\PaginaController as SitePaginaController;
 use App\Http\Controllers\UsuarioController;
 use App\Models\Pagina;
 use Illuminate\Support\Facades\Route;
+
+Route::post('/idioma', IdiomaController::class)->name('idioma.update');
 
 Route::get('/', HomeController::class)->name('home');
 Route::get('/busca', SiteBuscaController::class)->name('site.busca');

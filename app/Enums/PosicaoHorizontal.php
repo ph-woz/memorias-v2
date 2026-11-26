@@ -11,9 +11,9 @@ enum PosicaoHorizontal: string
     public function label(): string
     {
         return match ($this) {
-            self::Esquerda => 'Esquerda',
-            self::Centro => 'Centro',
-            self::Direita => 'Direita',
+            self::Esquerda => __('Esquerda'),
+            self::Centro => __('Centro'),
+            self::Direita => __('Direita'),
         };
     }
 

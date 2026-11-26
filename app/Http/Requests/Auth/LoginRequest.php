@@ -43,8 +43,8 @@ class LoginRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'login' => 'e-mail ou nickname',
-            'password' => 'senha',
+            'login' => __('E-mail ou Nickname'),
+            'password' => __('Senha'),
         ];
     }
 

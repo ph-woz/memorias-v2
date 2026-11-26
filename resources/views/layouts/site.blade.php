@@ -55,6 +55,7 @@
                         variante="header"
                     />
                     <x-site.menu :itens="$menuItens" :sobre-imagem="$headerSobreImagem" />
+                    <x-idioma-switcher variante="site" :sobre-imagem="$headerSobreImagem" />
                 </div>
             </div>
         </header>
