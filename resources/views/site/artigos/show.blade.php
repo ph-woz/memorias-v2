@@ -70,8 +70,11 @@
                 @endif
 
                 @if (filled($artigo->endereco_instituicoes))
-                    <div class="conteudo-rico prose prose-stone mt-4 max-w-none text-sm leading-relaxed text-ink-muted prose-p:my-1 prose-a:text-accent-deep">
-                        {!! $artigo->endereco_instituicoes !!}
+                    <div class="mt-4">
+                        <p class="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-ink/45">{{ __('Endereço das instituições') }}</p>
+                        <div class="conteudo-rico prose prose-stone mt-2 max-w-none text-sm leading-relaxed text-ink-muted prose-p:my-1 prose-a:text-accent-deep">
+                            {!! $artigo->endereco_instituicoes !!}
+                        </div>
                     </div>
                 @endif
 
