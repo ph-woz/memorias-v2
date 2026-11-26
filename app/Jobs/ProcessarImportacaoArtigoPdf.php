@@ -10,6 +10,7 @@ use App\Support\Ai\FormatarConteudoRicoComGemini;
 use App\Support\Artigos\EnriquecerHtmlLiteralDoPdf;
 use App\Support\Artigos\ExtrairImagensDoPdf;
 use App\Support\Artigos\ExtrairTextoPdf;
+use App\Support\Artigos\ExtrairTextoTabelasDoPdf;
 use App\Support\Artigos\ExtrairTrechosNegritoDoPdf;
 use App\Support\Artigos\MontarArtigoLiteralDoPdf;
 use App\Support\Artigos\ObterHtmlOriginalDoArtigoPorDoi;
@@ -43,6 +44,7 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
         RefinarMetadadosExtracaoPdf $refinarMetadados,
         MontarArtigoLiteralDoPdf $montarLiteral,
         ExtrairImagensDoPdf $extrairImagens,
+        ExtrairTextoTabelasDoPdf $extrairTextoTabelas,
         ExtrairTrechosNegritoDoPdf $extrairNegritoPdf,
         FormatarConteudoRicoComGemini $formatarRico,
         EnriquecerHtmlLiteralDoPdf $enriquecerHtml,
@@ -105,6 +107,7 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
 
         $this->importacao->atualizarProgresso(65, 'Extraindo imagens e tipografia do PDF...');
         $imagens = $extrairImagens->deCaminhoPublico($this->importacao->pdf_path);
+        $textosTabelas = $extrairTextoTabelas->deCaminhoPublico($this->importacao->pdf_path);
         $trechosNegritoPdf = $extrairNegritoPdf->deCaminhoPublico($this->importacao->pdf_path);
 
         $this->importacao->atualizarProgresso(75, 'Formatando tipografia rica a partir do PDF...');
@@ -128,6 +131,11 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
             $enriquecerHtml,
             $imagens,
             $trechosNegritoPdf,
+        );
+
+        $extracao['conteudo_html'] = $enriquecerHtml->garantirTabelaHtml(
+            (string) ($extracao['conteudo_html'] ?? ''),
+            $textosTabelas,
         );
 
         $this->importacao->atualizarProgresso(90, 'Criando rascunho do artigo...');

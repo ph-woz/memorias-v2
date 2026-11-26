@@ -15,6 +15,7 @@ use App\Support\Ai\FormatarConteudoRicoComGemini;
 use App\Support\Artigos\EnriquecerHtmlLiteralDoPdf;
 use App\Support\Artigos\ExtrairImagensDoPdf;
 use App\Support\Artigos\ExtrairTextoPdf;
+use App\Support\Artigos\ExtrairTextoTabelasDoPdf;
 use App\Support\Artigos\ExtrairTrechosNegritoDoPdf;
 use App\Support\Artigos\MontarArtigoLiteralDoPdf;
 use App\Support\Artigos\ObterHtmlOriginalDoArtigoPorDoi;
@@ -438,6 +439,9 @@ TXT.str_repeat(' Continuacao fiel do texto do autor.', 20)."\nREFERENCES\n1. Len
             ],
         ]);
 
+        $textosTabelas = Mockery::mock(ExtrairTextoTabelasDoPdf::class);
+        $textosTabelas->shouldReceive('deCaminhoPublico')->andReturn([]);
+
         $negrito = Mockery::mock(ExtrairTrechosNegritoDoPdf::class);
         $negrito->shouldReceive('deCaminhoPublico')->andReturn([]);
 
@@ -448,6 +452,7 @@ TXT.str_repeat(' Continuacao fiel do texto do autor.', 20)."\nREFERENCES\n1. Len
             app(RefinarMetadadosExtracaoPdf::class),
             app(MontarArtigoLiteralDoPdf::class),
             $imagens,
+            $textosTabelas,
             $negrito,
             app(FormatarConteudoRicoComGemini::class),
             app(EnriquecerHtmlLiteralDoPdf::class),

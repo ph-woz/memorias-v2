@@ -56,6 +56,31 @@ class EnriquecerHtmlLiteralDoPdf
     }
 
     /**
+     * Garante table HTML a partir do texto das páginas landscape do PDF
+     * quando o corpo ainda não tem table (ex.: Gemini omitiu).
+     *
+     * @param  list<string>  $textosPaginasTabela
+     */
+    public function garantirTabelaHtml(string $html, array $textosPaginasTabela): string
+    {
+        $html = trim($html);
+
+        if ($html === '' || preg_match('/<table\b/i', $html) === 1) {
+            return $this->removerProsaDuplicadaDeTabela($html);
+        }
+
+        $tabela = (new MontarHtmlTabelaDeTextoPdf)->dePaginas($textosPaginasTabela);
+
+        if ($tabela === '') {
+            return $html;
+        }
+
+        $html = $this->anexarTabelaHtml($html, $tabela);
+
+        return trim($this->removerProsaDuplicadaDeTabela($html));
+    }
+
+    /**
      * Aplica <strong> a trechos que o PDF marca em fonte negrito.
      *
      * @param  list<string>  $trechos
@@ -770,6 +795,28 @@ class EnriquecerHtmlLiteralDoPdf
         }
 
         return false;
+    }
+
+    private function anexarTabelaHtml(string $html, string $tabelaHtml): string
+    {
+        if (preg_match('/(?:<\/p>|<\/h2>)\s*(?=(?:<[^>]+>\s*)*(?:Table|Tabela)\b)/is', $html, $m, PREG_OFFSET_CAPTURE) === 1) {
+            $offset = $m[0][1] + strlen($m[0][0]);
+
+            return substr($html, 0, $offset).$tabelaHtml.substr($html, $offset);
+        }
+
+        if (preg_match('/<(?:h2|p)\b[^>]*>\s*(?:<strong>)?\s*REFERENCES?\b/i', $html, $m, PREG_OFFSET_CAPTURE) === 1) {
+            $offset = $m[0][1];
+
+            return substr($html, 0, $offset).$tabelaHtml.substr($html, $offset);
+        }
+
+        // Antes do ACKNOWLEDGEMENTS / AUTHORS se existirem
+        if (preg_match('/<h2\b[^>]*>\s*<strong>\s*ACKNOWLEDGEMENTS?\s*<\/strong>\s*<\/h2>/i', $html, $m, PREG_OFFSET_CAPTURE) === 1) {
+            return substr($html, 0, $m[0][1]).$tabelaHtml.substr($html, $m[0][1]);
+        }
+
+        return $html.$tabelaHtml;
     }
 
     /**
