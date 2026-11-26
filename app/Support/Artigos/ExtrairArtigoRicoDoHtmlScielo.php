@@ -49,12 +49,15 @@ class ExtrairArtigoRicoDoHtmlScielo
         }
 
         if ($ackHtml !== '') {
-            $ackHtml = preg_replace('/^\s*(?:<p[^>]*>)?\s*ACKNOWLEDGEMENTS?\s*/iu', '<p>', $ackHtml) ?? $ackHtml;
+            $ackHtml = $this->removerTituloInicialDaSecao($ackHtml, 'ACKNOWLEDGEMENTS?');
             $corpoHtml .= '<h2><strong>ACKNOWLEDGEMENTS</strong></h2>'.$ackHtml;
         }
 
         if ($contribuicaoHtml !== '') {
-            $contribuicaoHtml = preg_replace('/^\s*(?:<p[^>]*>)?\s*Author contributions?\s*/iu', '<p>', $contribuicaoHtml) ?? $contribuicaoHtml;
+            $contribuicaoHtml = $this->removerTituloInicialDaSecao(
+                $contribuicaoHtml,
+                'Author(?:s)?[\'’]?\s*contributions?',
+            );
             $corpoHtml .= '<h2><strong>AUTHORS’ CONTRIBUTION</strong></h2>'.$contribuicaoHtml;
         }
 
@@ -209,6 +212,35 @@ class ExtrairArtigoRicoDoHtmlScielo
         }
 
         return $imagens;
+    }
+
+    /**
+     * Remove o título já presente no HTML da seção SciELO (ex.: <h2 class="h5">ACKNOWLEDGEMENTS</h2>)
+     * antes de anexarmos o <h2> canônico — evita subtítulo duplicado.
+     */
+    private function removerTituloInicialDaSecao(string $html, string $tituloRegex): string
+    {
+        $padraoBloco = '/^\s*<(?:h[1-6]|p)\b[^>]*>\s*(?:<(?:strong|b|em|i|span)\b[^>]*>\s*)*'
+            .$tituloRegex
+            .'\s*(?:<\/(?:strong|b|em|i|span)>\s*)*<\/(?:h[1-6]|p)>\s*/iu';
+
+        $anterior = null;
+
+        while ($anterior !== $html) {
+            $anterior = $html;
+            $html = preg_replace($padraoBloco, '', $html) ?? $html;
+        }
+
+        // Título colado no início do primeiro parágrafo: "ACKNOWLEDGEMENTS To Dr..."
+        $html = preg_replace(
+            '/^\s*(<p\b[^>]*>)\s*(?:<(?:strong|b)\b[^>]*>\s*)*'.$tituloRegex.'\s*(?:<\/(?:strong|b)>\s*)*/iu',
+            '$1',
+            $html,
+        ) ?? $html;
+
+        $html = preg_replace('/^\s*<p\b[^>]*>\s*<\/p>\s*/iu', '', $html) ?? $html;
+
+        return trim($html);
     }
 
     private function normalizarTipografia(string $html): string

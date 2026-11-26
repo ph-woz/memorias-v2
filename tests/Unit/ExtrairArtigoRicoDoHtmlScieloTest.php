@@ -22,11 +22,37 @@ class ExtrairArtigoRicoDoHtmlScieloTest extends TestCase
         $this->assertStringContainsString('<em>T. infestans</em>', $resultado['conteudo_html']);
         $this->assertStringContainsString('<sup>(2)</sup>', $resultado['conteudo_html']);
         $this->assertStringContainsString('<h2><strong>ACKNOWLEDGEMENTS</strong></h2>', $resultado['conteudo_html']);
+        $this->assertSame(1, substr_count(strtoupper($resultado['conteudo_html']), 'ACKNOWLEDGEMENTS'));
+        $this->assertStringNotContainsString('h5', $resultado['conteudo_html']);
+        $this->assertStringContainsString('<h2><strong>AUTHORS’ CONTRIBUTION</strong></h2>', $resultado['conteudo_html']);
+        $this->assertStringNotContainsString('Author contributions', $resultado['conteudo_html']);
+        $this->assertStringContainsString('JC - Conceptualisation', $resultado['conteudo_html']);
         $this->assertStringContainsString('<p>', (string) $resultado['resumo']);
         $this->assertStringContainsString('Chagas disease persists', strip_tags((string) $resultado['resumo']));
         $this->assertContains('American Trypanosomiasis', $resultado['palavras_chave']);
         $this->assertCount(3, $resultado['referencias']);
         $this->assertDoesNotMatchRegularExpression('/^\d/', $resultado['referencias'][0]);
         $this->assertNotSame('', $resultado['referencias'][0]);
+    }
+
+    public function test_remove_titulo_colado_no_paragrafo_da_secao(): void
+    {
+        $html = <<<'HTML'
+<!DOCTYPE html>
+<html><body>
+<h1 class="article-title">Sample title for section strip</h1>
+<meta name="citation_doi" content="10.1590/0074-02760210015" />
+<div class="articleSection" data-anchor="Text"><p>Body paragraph of the article.</p></div>
+<div class="articleSection" data-anchor="ACKNOWLEDGEMENTS">
+  <p>ACKNOWLEDGEMENTS To colleagues who contributed to this review.</p>
+</div>
+</body></html>
+HTML;
+
+        $resultado = (new ExtrairArtigoRicoDoHtmlScielo)->extrair($html);
+
+        $this->assertNotNull($resultado);
+        $this->assertSame(1, substr_count(strtoupper($resultado['conteudo_html']), 'ACKNOWLEDGEMENTS'));
+        $this->assertStringContainsString('To colleagues who contributed', $resultado['conteudo_html']);
     }
 }

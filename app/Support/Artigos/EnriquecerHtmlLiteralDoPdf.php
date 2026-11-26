@@ -42,10 +42,43 @@ class EnriquecerHtmlLiteralDoPdf
         $html = $this->garantirParagrafos($html);
         $html = $this->repartirParagrafosLongos($html);
         $html = $this->aplicarTipografiaPreservandoTags($html);
+        $html = $this->removerTitulosSecaoDuplicados($html);
         $html = $this->removerPrintsDePagina($html);
         $html = $this->inserirImagens($html, $imagens);
 
         return trim($html);
+    }
+
+    /**
+     * Colapsa <h2> consecutivos com o mesmo texto (ex.: ACKNOWLEDGEMENTS duplicado).
+     */
+    private function removerTitulosSecaoDuplicados(string $html): string
+    {
+        return (string) preg_replace_callback(
+            '/(?:<h2\b[^>]*>\s*(?:<strong>)?\s*([^<]+?)\s*(?:<\/strong>)?\s*<\/h2>\s*){2,}/iu',
+            function (array $m): string {
+                if (preg_match_all('/<h2\b[^>]*>\s*(?:<strong>)?\s*([^<]+?)\s*(?:<\/strong>)?\s*<\/h2>/iu', $m[0], $titulos) === 0) {
+                    return $m[0];
+                }
+
+                $unicos = [];
+                $saida = '';
+
+                foreach ($titulos[0] as $indice => $bloco) {
+                    $chave = mb_strtolower(trim(preg_replace('/\s+/u', ' ', $titulos[1][$indice]) ?? $titulos[1][$indice]));
+
+                    if (isset($unicos[$chave])) {
+                        continue;
+                    }
+
+                    $unicos[$chave] = true;
+                    $saida .= $bloco;
+                }
+
+                return $saida;
+            },
+            $html,
+        );
     }
 
     /**
@@ -515,21 +548,22 @@ class EnriquecerHtmlLiteralDoPdf
 
     /**
      * Remove prints de página inteira (pagina-N.jpg) que duplicam o texto já presente.
+     * Não remove rasters dedicados de tabela landscape (tabela-pagina-N.jpg).
      */
     private function removerPrintsDePagina(string $html): string
     {
         $html = (string) preg_replace(
-            '/<figure\b[^>]*>\s*<img\b[^>]*(?:src|alt)=["\'][^"\']*pagina-\d+\.(?:jpe?g|png|webp)[^"\']*["\'][^>]*>.*?<\/figure>/is',
+            '/<figure\b[^>]*>\s*<img\b[^>]*(?:src|alt)=["\'][^"\']*(?<!tabela-)pagina-\d+\.(?:jpe?g|png|webp)[^"\']*["\'][^>]*>.*?<\/figure>/is',
             '',
             $html,
         );
         $html = (string) preg_replace(
-            '/<p\b[^>]*>\s*<img\b[^>]*(?:src|alt)=["\'][^"\']*pagina-\d+\.(?:jpe?g|png|webp)[^"\']*["\'][^>]*>\s*<\/p>/is',
+            '/<p\b[^>]*>\s*<img\b[^>]*(?:src|alt)=["\'][^"\']*(?<!tabela-)pagina-\d+\.(?:jpe?g|png|webp)[^"\']*["\'][^>]*>\s*<\/p>/is',
             '',
             $html,
         );
         $html = (string) preg_replace(
-            '/<img\b[^>]*(?:src|alt)=["\'][^"\']*pagina-\d+\.(?:jpe?g|png|webp)[^"\']*["\'][^>]*>/is',
+            '/<img\b[^>]*(?:src|alt)=["\'][^"\']*(?<!tabela-)pagina-\d+\.(?:jpe?g|png|webp)[^"\']*["\'][^>]*>/is',
             '',
             $html,
         );
@@ -548,7 +582,25 @@ class EnriquecerHtmlLiteralDoPdf
             (string) ($imagem['alt'] ?? ''),
         ]);
 
-        return preg_match('/pagina-\d+/i', $chave) === 1;
+        if (preg_match('/tabela-pagina-\d+/i', $chave) === 1) {
+            return false;
+        }
+
+        return preg_match('/(?<!tabela-)pagina-\d+/i', $chave) === 1;
+    }
+
+    /**
+     * @param  array{path?: string, url?: string, alt?: string}  $imagem
+     */
+    private function ehTabelaPagina(array $imagem): bool
+    {
+        $chave = implode(' ', [
+            (string) ($imagem['path'] ?? ''),
+            (string) ($imagem['url'] ?? ''),
+            (string) ($imagem['alt'] ?? ''),
+        ]);
+
+        return preg_match('/tabela-pagina-\d+/i', $chave) === 1;
     }
 
     /**
@@ -576,15 +628,73 @@ class EnriquecerHtmlLiteralDoPdf
             return $html;
         }
 
+        $tabelas = [];
+        $figuras = [];
+
+        foreach ($faltantes as $imagem) {
+            if ($this->ehTabelaPagina($imagem)) {
+                $tabelas[] = $imagem;
+            } else {
+                $figuras[] = $imagem;
+            }
+        }
+
+        $html = $this->anexarImagensTabela($html, $tabelas);
+        $html = $this->anexarImagensFigura($html, $figuras);
+
+        return $html;
+    }
+
+    /**
+     * @param  list<array{path: string, url: string, alt?: string}>  $imagens
+     */
+    private function anexarImagensTabela(string $html, array $imagens): string
+    {
+        if ($imagens === []) {
+            return $html;
+        }
+
+        $blocos = '';
+
+        foreach ($imagens as $indice => $imagem) {
+            $src = e($imagem['url']);
+            $alt = e($imagem['alt'] ?? 'tabela '.($indice + 1));
+            $blocos .= '<p style="text-align:center"><img src="'.$src.'" alt="'.$alt.'"></p>';
+        }
+
+        // Perto da primeira menção a Table/Tabela, ou antes de REFERENCES.
+        if (preg_match('/(?:<\/p>|<\/h2>)\s*(?=(?:<[^>]+>\s*)*(?:Table|Tabela)\b)/is', $html, $m, PREG_OFFSET_CAPTURE) === 1) {
+            $offset = $m[0][1] + strlen($m[0][0]);
+
+            return substr($html, 0, $offset).$blocos.substr($html, $offset);
+        }
+
+        if (preg_match('/<(?:h2|p)\b[^>]*>\s*(?:<strong>)?\s*REFERENCES?\b/i', $html, $m, PREG_OFFSET_CAPTURE) === 1) {
+            $offset = $m[0][1];
+
+            return substr($html, 0, $offset).$blocos.substr($html, $offset);
+        }
+
+        return $html.$blocos;
+    }
+
+    /**
+     * @param  list<array{path: string, url: string, alt?: string}>  $imagens
+     */
+    private function anexarImagensFigura(string $html, array $imagens): string
+    {
+        if ($imagens === []) {
+            return $html;
+        }
+
         $blocosPorIndice = [];
 
-        foreach ($faltantes as $indice => $imagem) {
+        foreach ($imagens as $indice => $imagem) {
             $src = e($imagem['url']);
             $alt = e($imagem['alt'] ?? 'figura '.($indice + 1));
             $blocosPorIndice[$indice] = '<p style="text-align:center"><img src="'.$src.'" alt="'.$alt.'"></p>';
         }
 
-        // Tenta ancorar em "Fig. N" / "Figure N".
         foreach ($blocosPorIndice as $indice => $bloco) {
             $n = $indice + 1;
             $padrao = '/(Fig(?:ure|\.)?\s*'.$n.'\b.*?<\/p>)/is';

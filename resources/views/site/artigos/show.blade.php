@@ -69,6 +69,12 @@
                     </p>
                 @endif
 
+                @if (filled($artigo->endereco_instituicoes))
+                    <div class="conteudo-rico prose prose-stone mt-4 max-w-none text-sm leading-relaxed text-ink-muted prose-p:my-1 prose-a:text-accent-deep">
+                        {!! $artigo->endereco_instituicoes !!}
+                    </div>
+                @endif
+
                 @if ($artigo->doi)
                     <p class="mt-4 text-sm text-ink-muted">
                         <span class="font-semibold text-ink">DOI:</span>
@@ -126,24 +132,14 @@
                     </div>
                 @endif
 
-                @if (filled($artigo->autor_correspondente) || filled($artigo->endereco_instituicoes))
+                @if (filled($artigo->autor_correspondente))
                     <div class="mt-12 space-y-8 border-t border-ink/10 pt-10 text-base leading-relaxed text-ink-muted">
-                        @if (filled($artigo->endereco_instituicoes))
-                            <div>
-                                <p class="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-ink/45">{{ __('Endereço das instituições') }}</p>
-                                <div class="conteudo-rico prose prose-stone mt-4 max-w-none prose-a:text-accent-deep">
-                                    {!! $artigo->endereco_instituicoes !!}
-                                </div>
+                        <div>
+                            <p class="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-ink/45">{{ __('Autor correspondente') }}</p>
+                            <div class="conteudo-rico prose prose-stone mt-4 max-w-none prose-a:text-accent-deep">
+                                {!! $artigo->autor_correspondente !!}
                             </div>
-                        @endif
-                        @if (filled($artigo->autor_correspondente))
-                            <div>
-                                <p class="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-ink/45">{{ __('Autor correspondente') }}</p>
-                                <div class="conteudo-rico prose prose-stone mt-4 max-w-none prose-a:text-accent-deep">
-                                    {!! $artigo->autor_correspondente !!}
-                                </div>
-                            </div>
-                        @endif
+                        </div>
                     </div>
                 @endif
 

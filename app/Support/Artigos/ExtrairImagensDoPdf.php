@@ -6,16 +6,22 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Imagick;
 use ImagickPixel;
+use Smalot\PdfParser\Parser;
 use Throwable;
 
 /**
- * Extrai apenas figuras embutidas (JPEG/PNG/FlateDecode) do PDF.
- * Não rasteriza páginas inteiras — isso duplicava o texto como "print".
+ * Extrai figuras embutidas (JPEG/PNG/FlateDecode) e rasteriza apenas páginas
+ * com tabelas landscape/rotacionadas como tabela-pagina-N.jpg.
+ * Não gera prints genéricos de página de texto (pagina-N.jpg).
  *
  * @phpstan-type ImagemExtraida array{path: string, url: string, alt: string, bytes: int, mime?: string}
  */
 class ExtrairImagensDoPdf
 {
+    public function __construct(
+        private readonly Parser $parser = new Parser,
+    ) {}
+
     /**
      * @return list<ImagemExtraida>
      */
@@ -25,11 +31,13 @@ class ExtrairImagensDoPdf
             return [];
         }
 
-        $binario = (string) file_get_contents(Storage::disk('public')->path($caminhoPdfPublico));
+        $absoluto = Storage::disk('public')->path($caminhoPdfPublico);
+        $binario = (string) file_get_contents($absoluto);
         $diretorio = 'artigos/conteudo/'.Str::uuid()->toString();
 
         $imagens = $this->extrairStreamsRaster($binario, $diretorio);
         $imagens = array_merge($imagens, $this->extrairImagensFlateDecode($binario, $diretorio));
+        $imagens = array_merge($imagens, $this->extrairTabelasLandscape($absoluto, $diretorio));
 
         return $this->filtrarDuplicatas($imagens);
     }
@@ -164,6 +172,102 @@ class ExtrairImagensDoPdf
         }
 
         return $imagens;
+    }
+
+    /**
+     * Rasteriza páginas cujo texto indica tabela científica landscape/rotacionada.
+     *
+     * @return list<ImagemExtraida>
+     */
+    private function extrairTabelasLandscape(string $caminhoAbsoluto, string $diretorio): array
+    {
+        if (! class_exists(Imagick::class)) {
+            return [];
+        }
+
+        try {
+            $paginas = $this->parser->parseFile($caminhoAbsoluto)->getPages();
+        } catch (Throwable) {
+            return [];
+        }
+
+        $imagens = [];
+
+        foreach ($paginas as $indice => $pagina) {
+            $texto = '';
+
+            try {
+                $texto = (string) $pagina->getText();
+            } catch (Throwable) {
+                continue;
+            }
+
+            if (! $this->paginaPareceTabelaLandscape($texto)) {
+                continue;
+            }
+
+            $numero = $indice + 1;
+            $jpeg = $this->rasterizarPagina($caminhoAbsoluto, $indice);
+
+            if ($jpeg === null) {
+                continue;
+            }
+
+            $imagens[] = $this->gravar(
+                $diretorio,
+                'tabela-pagina-'.$numero.'.jpg',
+                $jpeg,
+                'image/jpeg',
+            );
+        }
+
+        return $imagens;
+    }
+
+    private function paginaPareceTabelaLandscape(string $texto): bool
+    {
+        $normalizado = mb_strtolower(preg_replace('/\s+/u', ' ', $texto) ?? $texto);
+
+        if (trim($normalizado) === '') {
+            return false;
+        }
+
+        $cabecalhos = 0;
+
+        foreach (['type locality', 'distribution', 'collection', 'ecotope', 'dna sequence'] as $cabecalho) {
+            if (str_contains($normalizado, $cabecalho)) {
+                $cabecalhos++;
+            }
+        }
+
+        if ($cabecalhos >= 3) {
+            return true;
+        }
+
+        $temTituloTabela = preg_match('/\btable\s+(?:[ivxlcdm]+|\d+)\b/iu', $texto) === 1
+            || preg_match('/\btabela\s+(?:[ivxlcdm]+|\d+)\b/iu', $texto) === 1;
+
+        return $temTituloTabela && $cabecalhos >= 2;
+    }
+
+    private function rasterizarPagina(string $caminhoAbsoluto, int $indiceZeroBased): ?string
+    {
+        try {
+            $imagem = new Imagick;
+            $imagem->setResolution(150, 150);
+            $imagem->readImage($caminhoAbsoluto.'['.$indiceZeroBased.']');
+            $imagem->setImageBackgroundColor(new ImagickPixel('white'));
+            $imagem = $imagem->mergeImageLayers(Imagick::LAYERMETHOD_FLATTEN);
+            $imagem->setImageFormat('jpeg');
+            $imagem->setImageCompressionQuality(85);
+            $blob = $imagem->getImageBlob();
+            $imagem->clear();
+            $imagem->destroy();
+
+            return strlen($blob) >= 8_000 ? $blob : null;
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     private function pixelsParaJpeg(string $raw, int $width, int $height): ?string

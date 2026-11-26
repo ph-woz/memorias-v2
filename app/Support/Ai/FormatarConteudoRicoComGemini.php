@@ -172,10 +172,11 @@ REGRAS ABSOLUTAS:
 6. Citações no texto SOMENTE como <sup>(2)</sup> ou <sup>(3, 4, 5)</sup> — só os números da referência. NUNCA coloque anos, volumes, páginas nem texto bibliográfico dentro do <sup>.
 7. Negritos do PDF em <strong>.
 8. Figuras reais: use SOMENTE as URLs listadas abaixo com <p style="text-align:center"><img src="URL" alt="…"></p> no ponto do PDF em que a figura aparece.
-9. PROIBIDO embutir print/screenshot de página de texto (mesmo visualmente igual ao PDF). Texto vai só em HTML (<p>, <h2>, <em>…), nunca como <img> de página.
-10. Não inclua cabeçalho da revista, autores, abstract, key words nem REFERENCES no conteudo_html.
-11. resumo_html = abstract literal com a mesma marcação (<em>, <sup>).
-12. Prefira dezenas de <p> a poucos <p> longos — legibilidade tipográfica é obrigatória.
+9. PROIBIDO embutir print/screenshot de página de TEXTO CORRIDO (ex.: pagina-N.jpg). Texto narrativo vai só em HTML (<p>, <h2>, <em>…), nunca como <img> de página de prosa.
+10. Tabelas do PDF (inclusive landscape/rotacionadas) são OBRIGATÓRIAS no conteudo_html. Se houver URLs tabela-pagina-* na lista, insira cada uma com <p style="text-align:center"><img src="URL" alt="…"></p> no ponto em que a tabela aparece. Sem essas URLs, emita <table> HTML com o conteúdo literal da tabela (não omita).
+11. Não inclua cabeçalho da revista, autores, abstract, key words nem REFERENCES no conteudo_html.
+12. resumo_html = abstract literal com a mesma marcação (<em>, <sup>).
+13. Prefira dezenas de <p> a poucos <p> longos — legibilidade tipográfica é obrigatória.
 
 Imagens disponíveis (use o src exato):
 {$listaImagens}

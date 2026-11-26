@@ -330,7 +330,82 @@ TXT.str_repeat(' Continuacao fiel do texto do autor.', 25)."\nREFERENCES\n1. Len
         $this->assertStringContainsString('fig-1.jpg', $artigo->conteudo);
         $this->assertStringNotContainsString('pagina-2.jpg', $artigo->conteudo);
         $this->assertStringNotContainsString('pagina-3.jpg', $artigo->conteudo);
-        $this->assertDoesNotMatchRegularExpression('/<img[^>]+pagina-\d+/i', $artigo->conteudo);
+        $this->assertDoesNotMatchRegularExpression('/<img[^>]+(?<!tabela-)pagina-\d+/i', $artigo->conteudo);
+    }
+
+    public function test_job_mantem_raster_de_tabela_landscape_no_conteudo(): void
+    {
+        Storage::fake('public');
+
+        $usuario = User::factory()->create();
+        $caminho = 'artigos/importacoes/teste-tabela-landscape.pdf';
+        Storage::disk('public')->put($caminho, '%PDF-1.4 fake');
+
+        $importacao = ArtigoImportacao::factory()->create([
+            'user_id' => $usuario->id,
+            'pdf_path' => $caminho,
+            'pdf_nome_original' => 'memoria.pdf',
+            'status' => StatusImportacaoArtigo::Pendente,
+        ]);
+
+        $textoPdf = <<<'TXT'
+Mem Inst Oswaldo Cruz, Rio de Janeiro, Vol. 116: e210015, 2021
+REVIEW
+Do the new triatomine species pose new challenges or strategies for monitoring Chagas disease? An overview from 1979-2021
+Jane Costa
+1
+, Carolina Dale
+1
+1
+Fundação Oswaldo Cruz-Fiocruz, Instituto Oswaldo Cruz, Rio de Janeiro, RJ, Brasil
+Chagas disease persists as one of the most important, and yet most neglected, diseases in the world, and several changes in its epidemiological aspects have been recorded since its discovery.
+Key words: American Trypanosomiasis - vectors - Triatominae subfamily
+doi: 10.1590/0074-02760210015
++ Corresponding author: jcosta@ioc.fiocruz.br
+Accepted 04 May 2021
+Despite the great achievements in controlling Chagas disease. (2) Vectors such as Triatoma infestans continue to challenge control programs.
+Table I summarizes Type locality Distribution Collection Ecotope DNA sequence for Herman Lent Collection.
+TXT.str_repeat(' Continuacao fiel do texto do autor.', 20)."\nREFERENCES\n1. Lent H, Wygodzinsky P. Revision. 1979.";
+
+        $this->mock(ExtrairTextoPdf::class, function ($mock) use ($textoPdf): void {
+            $mock->shouldReceive('deCaminhoPublico')->once()->andReturn($textoPdf);
+        });
+
+        $gemini = Mockery::mock(ExtrairArtigoComGemini::class);
+        $gemini->shouldReceive('extrairMetadados')->once()->andThrow(new \RuntimeException('Falha na API Gemini: HTTP 503'));
+        $this->app->instance(ExtrairArtigoComGemini::class, $gemini);
+
+        config(['ai.default' => 'gemini']);
+
+        $this->mock(FormatarConteudoRicoComGemini::class, function ($mock): void {
+            $mock->shouldReceive('formatarComFallback')->once()->andReturn([
+                'conteudo_html' => '<p>Despite the great achievements in controlling Chagas disease. (2) Vectors such as Triatoma infestans continue to challenge control programs.</p>'
+                    .'<p>Table I summarizes Type locality Distribution Collection Ecotope DNA sequence for Herman Lent Collection.</p>',
+                'resumo_html' => '<p>Chagas disease persists as one of the most important, and yet most neglected, diseases in the world.</p>',
+            ]);
+        });
+
+        $this->processarImportacao($importacao, [
+            [
+                'path' => 'artigos/conteudo/x/tabela-pagina-4.jpg',
+                'url' => '/storage/artigos/conteudo/x/tabela-pagina-4.jpg',
+                'alt' => 'tabela-pagina-4',
+                'bytes' => 90_000,
+            ],
+            [
+                'path' => 'artigos/conteudo/x/fig-1.jpg',
+                'url' => '/storage/artigos/conteudo/x/fig-1.jpg',
+                'alt' => 'fig-1',
+                'bytes' => 12_000,
+            ],
+        ]);
+
+        $artigo = Artigo::query()->firstOrFail();
+
+        $this->assertSame(StatusImportacaoArtigo::Concluida, $importacao->fresh()->status);
+        $this->assertStringContainsString('tabela-pagina-4.jpg', $artigo->conteudo);
+        $this->assertStringContainsString('fig-1.jpg', $artigo->conteudo);
+        $this->assertMatchesRegularExpression('/tabela-pagina-\d+|<\s*table\b/i', $artigo->conteudo);
     }
 
     /**

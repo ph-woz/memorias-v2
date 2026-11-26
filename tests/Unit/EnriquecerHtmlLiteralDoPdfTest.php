@@ -93,6 +93,60 @@ class EnriquecerHtmlLiteralDoPdfTest extends TestCase
         $this->assertStringContainsString('<em>Triatoma infestans</em>', $resultado);
     }
 
+    public function test_preserva_e_insere_raster_de_tabela_landscape(): void
+    {
+        $html = '<p>Material and methods describe sampling.</p>'
+            .'<p>Table I summarizes type locality and DNA sequence data.</p>'
+            .'<p style="text-align:center"><img src="/storage/artigos/conteudo/x/pagina-4.jpg" alt="pagina-4"></p>'
+            .'<h2><strong>REFERENCES</strong></h2>';
+
+        $resultado = (new EnriquecerHtmlLiteralDoPdf)->polir($html, [
+            [
+                'path' => 'artigos/conteudo/x/pagina-4.jpg',
+                'url' => '/storage/artigos/conteudo/x/pagina-4.jpg',
+                'alt' => 'pagina-4',
+            ],
+            [
+                'path' => 'artigos/conteudo/x/tabela-pagina-4.jpg',
+                'url' => '/storage/artigos/conteudo/x/tabela-pagina-4.jpg',
+                'alt' => 'tabela-pagina-4',
+            ],
+            [
+                'path' => 'artigos/conteudo/x/tabela-pagina-5.jpg',
+                'url' => '/storage/artigos/conteudo/x/tabela-pagina-5.jpg',
+                'alt' => 'tabela-pagina-5',
+            ],
+        ]);
+
+        $this->assertDoesNotMatchRegularExpression('/(?<!tabela-)pagina-4\.jpg/', $resultado);
+        $this->assertStringContainsString('tabela-pagina-4.jpg', $resultado);
+        $this->assertStringContainsString('tabela-pagina-5.jpg', $resultado);
+        $posTabela = strpos($resultado, 'tabela-pagina-4.jpg');
+        $posReferences = strpos($resultado, 'REFERENCES');
+        $this->assertNotFalse($posTabela);
+        $this->assertNotFalse($posReferences);
+        $this->assertLessThan($posReferences, $posTabela);
+    }
+
+    public function test_remove_titulos_de_secao_duplicados_consecutivos(): void
+    {
+        $html = '<p>Final sentence of the discussion.(108)</p>'
+            .'<h2><strong>ACKNOWLEDGEMENTS</strong></h2>'
+            .'<h2 class="h5">ACKNOWLEDGEMENTS</h2>'
+            .'<p>To Dr Andrew Townsend Peterson.</p>'
+            .'<h2><strong>AUTHORS’ CONTRIBUTION</strong></h2>'
+            .'<h2 class="h5">Author contributions</h2>'
+            .'<p>JC - Conceptualisation and writing.</p>';
+
+        $resultado = (new EnriquecerHtmlLiteralDoPdf)->polir($html);
+
+        $this->assertSame(1, substr_count(strtoupper($resultado), 'ACKNOWLEDGEMENTS'));
+        $this->assertStringContainsString('To Dr Andrew Townsend Peterson.', $resultado);
+        // Títulos com texto diferente não são colapsados pelo dedupe idêntico.
+        $this->assertStringContainsString('AUTHORS’ CONTRIBUTION', $resultado);
+        $this->assertStringContainsString('Author contributions', $resultado);
+    }
+
     public function test_polir_campo_rico_converte_texto_e_preserva_html(): void
     {
         $enriquecedor = new EnriquecerHtmlLiteralDoPdf;
