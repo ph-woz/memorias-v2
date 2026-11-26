@@ -245,9 +245,11 @@ class ExtrairArtigoRicoDoHtmlScielo
 
     private function normalizarTipografia(string $html): string
     {
-        // SciELO usa <i>; o editor TipTap das Memórias trabalha com <em>.
+        // SciELO usa <i>/<b>; o editor TipTap das Memórias trabalha com <em>/<strong>.
         $html = preg_replace('/<i\b([^>]*)>/i', '<em$1>', $html) ?? $html;
         $html = preg_replace('/<\/i>/i', '</em>', $html) ?? $html;
+        $html = preg_replace('/<b\b([^>]*)>/i', '<strong$1>', $html) ?? $html;
+        $html = preg_replace('/<\/b>/i', '</strong>', $html) ?? $html;
 
         // Citações SciELO: <sup><a class="xref">1</a></sup> → <sup>(1)</sup> (sem anos/páginas).
         $html = (new NormalizarCitacoesNoHtml)->normalizar($html);

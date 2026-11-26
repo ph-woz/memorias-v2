@@ -251,8 +251,9 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
                 return $this->enriquecerCamposMetadadoHtml($mesclado, $enriquecerHtml);
             }
 
-            // Garante imagens do PDF mesmo quando o corpo vem do HTML publicado.
-            $mesclado['conteudo_html'] = $enriquecerHtml->injetarImagensSeAusentes(
+            // SciELO/Memórias às vezes perdem negrito de subtítulos; polir reaplica tipografia
+            // e ainda injeta figuras do PDF ausentes no HTML publicado.
+            $mesclado['conteudo_html'] = $enriquecerHtml->polir(
                 (string) ($mesclado['conteudo_html'] ?? ''),
                 $imagens,
             );

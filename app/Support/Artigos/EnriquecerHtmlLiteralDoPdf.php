@@ -40,6 +40,7 @@ class EnriquecerHtmlLiteralDoPdf
         }
 
         $html = $this->garantirParagrafos($html);
+        $html = $this->removerParagrafosVazios($html);
         $html = $this->repartirParagrafosLongos($html);
         $html = $this->aplicarTipografiaPreservandoTags($html);
         $html = $this->removerTitulosSecaoDuplicados($html);
@@ -47,6 +48,11 @@ class EnriquecerHtmlLiteralDoPdf
         $html = $this->inserirImagens($html, $imagens);
 
         return trim($html);
+    }
+
+    private function removerParagrafosVazios(string $html): string
+    {
+        return trim((string) preg_replace('/<p\b[^>]*>\s*(?:&nbsp;|\x{00A0})?\s*<\/p>/iu', '', $html));
     }
 
     /**
@@ -380,11 +386,35 @@ class EnriquecerHtmlLiteralDoPdf
 
     private function pareceSubtituloNegrito(string $texto): bool
     {
-        if (mb_strlen($texto) > 70 || str_ends_with($texto, '.')) {
+        if (mb_strlen($texto) > 70 || preg_match('/[.!?]$/u', $texto) === 1) {
             return false;
         }
 
-        return preg_match('/^(New species|Taxonomic|Epidemiolog|Vector|Control|Diagnosis|Treatment|Surveillance|Challenges|Strategies)\b/iu', $texto) === 1;
+        if (preg_match('/^(New species|Taxonomic|Epidemiolog|Vector|Control|Diagnosis|Treatment|Surveillance|Challenges|Strategies)\b/iu', $texto) === 1) {
+            return true;
+        }
+
+        // Subtítulos curtos do PDF/SciELO (ex.: "Triatominae until 1979") que chegaram sem <strong>.
+        // Rejeita prosa: quebra de frase, vírgulas ou palavras típicas de parágrafo.
+        if (preg_match('/\.\s/u', $texto) === 1 || substr_count($texto, ',') > 0) {
+            return false;
+        }
+
+        $palavras = preg_split('/\s+/u', trim($texto)) ?: [];
+
+        if (count($palavras) < 2 || count($palavras) > 6) {
+            return false;
+        }
+
+        if (preg_match('/^[A-ZÁÉÍÓÚÂÊÔÃÕ]/u', $texto) !== 1) {
+            return false;
+        }
+
+        if (preg_match('/\b(the|and|of|in|to|for|with|from|by|that|this|these|those|are|is|was|were|have|has|had|been|being|which|their|there|into|about|between|remains|continue|known|described|when|first)\b/i', $texto) === 1) {
+            return false;
+        }
+
+        return true;
     }
 
     private function marcarCitacoesEmTexto(string $textoEscapado): string

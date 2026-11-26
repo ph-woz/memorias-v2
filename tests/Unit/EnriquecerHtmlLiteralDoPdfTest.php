@@ -128,6 +128,28 @@ class EnriquecerHtmlLiteralDoPdfTest extends TestCase
         $this->assertLessThan($posReferences, $posTabela);
     }
 
+    public function test_marca_subtitulos_negrito_perdidos_pelo_html_publicado(): void
+    {
+        $html = '<p>Despite the great achievements in controlling Chagas disease around the world.</p>'
+            .'<p></p>'
+            .'<p>Triatominae until 1979</p>'
+            .'<p></p>'
+            .'<p>Triatomines have been known since the 18th century, when the first species, <em>T. rubrofasciata</em>, was described.</p>'
+            .'<p>New species challenges</p>';
+
+        $resultado = (new EnriquecerHtmlLiteralDoPdf)->polir($html);
+
+        $this->assertStringNotContainsString('<p>Triatominae until 1979</p>', $resultado);
+        $this->assertMatchesRegularExpression(
+            '/<(h2|p)[^>]*>\s*(?:<strong>)?Triatominae until 1979(?:<\/strong>)?\s*<\/\1>/i',
+            $resultado,
+        );
+        $this->assertStringContainsString('<strong>', $resultado);
+        $this->assertStringContainsString('<em>T. rubrofasciata</em>', $resultado);
+        $this->assertStringContainsString('New species challenges', $resultado);
+        $this->assertMatchesRegularExpression('/<(strong|h2)>New species challenges<\/(strong|h2)>/', $resultado);
+    }
+
     public function test_remove_titulos_de_secao_duplicados_consecutivos(): void
     {
         $html = '<p>Final sentence of the discussion.(108)</p>'
