@@ -61,11 +61,23 @@ class NormalizarMetadadosEditoriaisPdf
                 continue;
             }
 
-            $linhas[] = e($parte);
+            $linhas[] = $this->formatarLinhaInstituicao($parte);
         }
 
         // Uma linha por instituição com <br> — espaçamento do PDF, não margem de parágrafo.
-        return $this->blocoEditorialCompacto($linhas !== [] ? $linhas : [e(trim($texto))]);
+        return $this->blocoEditorialCompacto($linhas !== [] ? $linhas : [$this->formatarLinhaInstituicao(trim($texto))]);
+    }
+
+    /**
+     * Número da afiliação em sobrescrito, colado ao nome (como no PDF: ¹Fundação…).
+     */
+    private function formatarLinhaInstituicao(string $parte): string
+    {
+        if (preg_match('/^(\d{1,2})\s+(.*)$/u', trim($parte), $m) === 1) {
+            return '<sup>'.e($m[1]).'</sup>'.e($m[2]);
+        }
+
+        return e(trim($parte));
     }
 
     public function autorCorrespondente(string $valor): string

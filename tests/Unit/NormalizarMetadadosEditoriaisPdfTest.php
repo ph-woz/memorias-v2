@@ -23,8 +23,9 @@ class NormalizarMetadadosEditoriaisPdfTest extends TestCase
         $this->assertStringNotContainsString('Cleber Galvão', $html);
         $this->assertSame(1, substr_count($html, '<p>'));
         $this->assertSame(4, substr_count($html, '<br>'));
-        $this->assertStringContainsString('1 Fundação Oswaldo Cruz-Fiocruz', $html);
-        $this->assertStringContainsString('5 Institut de Recherche pour le Développement, Montpellier, France</p>', $html);
+        $this->assertStringContainsString('<sup>1</sup>Fundação Oswaldo Cruz-Fiocruz', $html);
+        $this->assertStringContainsString('<sup>5</sup>Institut de Recherche pour le Développement, Montpellier, France</p>', $html);
+        $this->assertStringNotContainsString('>1 Fundação', $html);
     }
 
     public function test_corta_abstract_colado_apos_instituicoes(): void
@@ -37,6 +38,8 @@ class NormalizarMetadadosEditoriaisPdfTest extends TestCase
 
         $this->assertSame(1, substr_count($html, '<p>'));
         $this->assertSame(1, substr_count($html, '<br>'));
+        $this->assertStringContainsString('<sup>1</sup>Fundação', $html);
+        $this->assertStringContainsString('<sup>2</sup>Institut', $html);
         $this->assertStringNotContainsString('Chagas disease', $html);
         $this->assertStringNotContainsString('Key words', $html);
     }
@@ -50,9 +53,9 @@ class NormalizarMetadadosEditoriaisPdfTest extends TestCase
         $html = (new NormalizarMetadadosEditoriaisPdf)->enderecoInstituicoes($bruto);
 
         $this->assertSame(
-            '<p>1 Fundação Oswaldo Cruz-Fiocruz, Rio de Janeiro, RJ, Brasil<br>'
-            .'2 Institut de Recherche pour le Développement, Montpellier, France<br>'
-            .'3 Universidade Federal da Bahia, Salvador, BA, Brasil</p>',
+            '<p><sup>1</sup>Fundação Oswaldo Cruz-Fiocruz, Rio de Janeiro, RJ, Brasil<br>'
+            .'<sup>2</sup>Institut de Recherche pour le Développement, Montpellier, France<br>'
+            .'<sup>3</sup>Universidade Federal da Bahia, Salvador, BA, Brasil</p>',
             $html,
         );
     }

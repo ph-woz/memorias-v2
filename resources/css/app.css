@@ -426,6 +426,14 @@
     hyphens: manual;
 }
 
+.conteudo-rico--editorial.prose :where(sup),
+.conteudo-rico--editorial sup {
+    font-size: 0.65em;
+    line-height: 0;
+    vertical-align: super;
+    font-weight: 600;
+}
+
 /*
  * HTML SciELO/Memórias traz classes Bootstrap (.row, .col-*, .table)
  * que colidem com utilitários Tailwind (ex.: .table → display:table)
