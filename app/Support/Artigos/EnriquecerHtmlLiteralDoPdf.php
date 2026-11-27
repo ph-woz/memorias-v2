@@ -45,7 +45,7 @@ class EnriquecerHtmlLiteralDoPdf
         $html = $this->removerParagrafosVazios($html);
         $html = $this->garantirEspacosAoRedorDeMarcacao($html);
         $html = $this->aplicarTrechosNegritoDoPdf($html, $trechosNegritoPdf);
-        $html = $this->repartirParagrafosLongos($html);
+        // Nunca inventar <p>: o PDF manda. Só funde quebras falsas (ex.: antes de "(Latreille…").
         $html = $this->fundirQuebrasAposChamadaTabelaFigura($html);
         $html = $this->fundirParagrafosContinuacao($html);
         $html = $this->aplicarTipografiaPreservandoTags($html);
@@ -507,43 +507,14 @@ class EnriquecerHtmlLiteralDoPdf
     }
 
     /**
-     * Mesmo com HTML vindo da IA, evita "parede de texto" repartindo <p> longos.
+     * @deprecated Não inventa parágrafos. O PDF é a única referência de quebras.
+     * Mantido como no-op para não quebrar chamadas legadas.
      */
     public function repartirParagrafosLongos(string $html, int $limite = 520): string
     {
-        return (string) preg_replace_callback(
-            '/<p\b([^>]*)>(.*?)<\/p>/is',
-            function (array $m) use ($limite): string {
-                $attrs = $m[1];
-                $interno = $m[2];
+        unset($limite);
 
-                if (str_contains(strtolower($interno), '<img')) {
-                    return $m[0];
-                }
-
-                $texto = html_entity_decode(strip_tags($interno), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-                $texto = trim(preg_replace('/\s+/u', ' ', $texto) ?? $texto);
-
-                if (mb_strlen($texto) <= $limite) {
-                    return $m[0];
-                }
-
-                // Sem tags internas: reparte e reescapa.
-                if (! str_contains($interno, '<')) {
-                    $html = '';
-
-                    foreach ($this->partirBlocoLongo($texto) as $parte) {
-                        $html .= '<p'.$attrs.'>'.e($parte).'</p>';
-                    }
-
-                    return $html;
-                }
-
-                // Com tipografia: reparte preservando tags ao redor de frases.
-                return $this->repartirInternoComTags($attrs, $interno, $limite);
-            },
-            $html,
-        );
+        return $html;
     }
 
     /**
@@ -614,9 +585,8 @@ class EnriquecerHtmlLiteralDoPdf
                 continue;
             }
 
-            foreach ($this->partirBlocoLongo($bloco) as $parte) {
-                $html[] = '<p>'.e($parte).'</p>';
-            }
+            // Uma quebra real do texto (\n\n) = um <p>. Sem repartir por tamanho/frase.
+            $html[] = '<p>'.e($bloco).'</p>';
         }
 
         return implode('', $html);

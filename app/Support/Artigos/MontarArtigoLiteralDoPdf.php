@@ -623,14 +623,8 @@ class MontarArtigoLiteralDoPdf
 
         $texto = $this->desifenizarTipografico($texto);
         $texto = $this->promoverTitulosDeLinha($texto);
+        // Só quebras reais do PDF (\n\n após promover títulos). Nunca inventar <p> por frase/tamanho.
         $blocos = preg_split("/\n{2,}/u", $texto) ?: [$texto];
-
-        // PDFs científicos costumam ter só quebra simples de linha: reparte por frases.
-        if (count($blocos) <= 2) {
-            $continuo = trim(preg_replace("/[ \t]*\n[ \t]*/u", ' ', $texto) ?? $texto);
-            $continuo = preg_replace('/[ ]{2,}/u', ' ', $continuo) ?? $continuo;
-            $blocos = $this->partirEmParagrafosPorFrase($continuo);
-        }
 
         $html = [];
 

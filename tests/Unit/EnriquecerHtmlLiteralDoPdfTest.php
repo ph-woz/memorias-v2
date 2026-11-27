@@ -7,7 +7,7 @@ use PHPUnit\Framework\TestCase;
 
 class EnriquecerHtmlLiteralDoPdfTest extends TestCase
 {
-    public function test_reparte_paragrafos_marca_especies_citacoes_e_insere_imagens(): void
+    public function test_preserva_paragrafo_unico_do_pdf_e_marca_especies_citacoes_e_imagens(): void
     {
         $html = '<p>Despite the great achievements in controlling Chagas disease. '
             .'No vaccines are available for Triatoma infestans vectors. (2) '
@@ -19,7 +19,10 @@ class EnriquecerHtmlLiteralDoPdfTest extends TestCase
             ['path' => 'x.jpg', 'url' => '/storage/artigos/conteudo/fig-1.jpg', 'alt' => 'fig01'],
         ]);
 
-        $this->assertGreaterThan(1, substr_count($resultado, '<p'));
+        // PDF manda: um <p> longo permanece um <p> — sem inventar quebras por tamanho.
+        // (imagens legítimas usam <p style="text-align:center"> e não contam aqui)
+        $this->assertSame(1, substr_count($resultado, '<p>'));
+        $this->assertStringNotContainsString('</p><p>Continuacao', $resultado);
         $this->assertStringContainsString('<em>Triatoma infestans</em>', $resultado);
         $this->assertStringContainsString('<em>Rhodnius prolixus</em>', $resultado);
         $this->assertStringContainsString('<sup>(2)</sup>', $resultado);
@@ -334,6 +337,7 @@ class EnriquecerHtmlLiteralDoPdfTest extends TestCase
 
         $resultado = (new EnriquecerHtmlLiteralDoPdf)->polir($html);
 
+        $this->assertSame(1, substr_count(strtolower($resultado), '<p'));
         $this->assertDoesNotMatchRegularExpression(
             '/\bT\.\s*<\/p>\s*<p/i',
             $resultado,

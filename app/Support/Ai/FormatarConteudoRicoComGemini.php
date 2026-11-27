@@ -168,7 +168,7 @@ fiel ao PDF — mesmas palavras — com formatação tipográfica completa.
 REGRAS ABSOLUTAS:
 1. NÃO parafraseie, NÃO resuma, NÃO traduza, NÃO invente frases.
 2. Preserve o texto literal do PDF (incluindo citações numéricas).
-3. Estruture com MUITOS <p> curtos (ideal 2–5 frases cada), como os blocos visuais do PDF. Nunca um único bloco/parágrafo gigante.
+3. PARÁGRAFOS: o PDF é a ÚNICA referência. Abra um <p> NOVO somente onde o PDF tem parágrafo novo (recuo/bloco visual). PROIBIDO inventar <p> por tamanho, por “legibilidade” ou a cada 2–5 frases. PROIBIDO quebrar no meio de frase (ex.: antes de "(Latreille, 1811)"). Se o PDF tem um bloco longo, o HTML fica com um <p> longo.
 4. Nomes científicos / espécies em <em>…</em> (ex.: <em>Triatoma infestans</em>).
 5. Títulos de seção do PDF em <h2>…</h2>.
 6. Citações no texto SOMENTE como <sup>(2)</sup> ou <sup>(3, 4, 5)</sup> — só os números da referência. NUNCA coloque anos, volumes, páginas nem texto bibliográfico dentro do <sup>.
@@ -179,7 +179,7 @@ REGRAS ABSOLUTAS:
 11. Tabelas do PDF (inclusive landscape/rotacionadas — texto virado, NÃO figura) são OBRIGATÓRIAS como <table> HTML literal (caption + thead/tbody, células fiéis ao PDF). PROIBIDO usar print/raster de página de tabela (tabela-pagina-*, screenshot). Nunca omita a tabela. Coloque a <table> imediatamente APÓS o parágrafo que cita "(Table, Figure)" (ou a chamada editorial equivalente) — NUNCA no meio de uma frase cortada por página landscape. Chamadas "(Table)." / "(Figure)." NÃO abrem parágrafo novo: a frase seguinte continua no mesmo <p>.
 12. Não inclua cabeçalho da revista, autores, abstract, key words nem REFERENCES no conteudo_html.
 13. resumo_html = abstract literal com a mesma marcação (<em>, <sup>).
-14. Prefira dezenas de <p> a poucos <p> longos — legibilidade tipográfica é obrigatória.
+14. Fidelidade tipográfica do PDF > “parecer legível”. Menos <p> fiéis valem mais que muitos <p> inventados.
 
 Imagens disponíveis (use o src exato):
 {$listaImagens}
