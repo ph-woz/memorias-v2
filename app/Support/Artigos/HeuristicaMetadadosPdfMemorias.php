@@ -162,18 +162,34 @@ class HeuristicaMetadadosPdfMemorias
 
     private function extrairInstituicoes(string $inicio): ?string
     {
-        // Mantém o bloco literal do PDF (números + afiliações) para validação de fidelidade.
-        if (preg_match(
-            '/\n(\s*\d{1,2}\s*\n\s*(?:.|\n)*?)(?=\nChagas disease|\nAbstract\b|\nResumo\b|\nKey words?:)/iu',
+        // Só linhas de afiliação real (1 Fundação…), nunca índices de autor ("1 / +").
+        if (preg_match_all(
+            '/(?:^|\n)\s*(\d{1,2})\s*\n\s*((?:Fundação|Fundacao|Universidade|Institut[eo]?|Centro|College|University|Departamento|Department|Laborat)[^\n]+(?:\n(?!\s*\d{1,2}\s*(?:\n|\/))[^\n]+)*)/iu',
             $inicio,
-            $m,
-        ) !== 1) {
+            $matches,
+            PREG_SET_ORDER,
+        ) === 0) {
             return null;
         }
 
-        $bloco = trim($m[1]);
+        $linhas = [];
 
-        return $bloco !== '' ? $bloco : null;
+        foreach ($matches as $match) {
+            $numero = trim($match[1]);
+            $texto = $this->compactar($match[2]);
+
+            if ($texto === '') {
+                continue;
+            }
+
+            $linhas[] = $numero.' '.$texto;
+        }
+
+        if ($linhas === []) {
+            return null;
+        }
+
+        return implode("\n", $linhas);
     }
 
     private function extrairResumo(string $inicio): ?string

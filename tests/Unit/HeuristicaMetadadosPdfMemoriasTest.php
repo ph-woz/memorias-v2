@@ -55,7 +55,11 @@ TXT;
         $this->assertStringContainsString('https://orcid.org/0000-0001-6664-1394', $correspondente);
         $this->assertStringContainsString('Received 14 January 2021', $correspondente);
         $this->assertStringContainsString('Accepted 04 May 2021', $correspondente);
-        $this->assertStringContainsString('Fundação Oswaldo Cruz-Fiocruz', (string) $resultado['endereco_instituicoes']);
+        $instituicoes = (string) $resultado['endereco_instituicoes'];
+        $this->assertStringContainsString('Fundação Oswaldo Cruz-Fiocruz', $instituicoes);
+        $this->assertStringContainsString('Institut de Recherche pour le Développement', $instituicoes);
+        $this->assertStringNotContainsString('1 / +', $instituicoes);
+        $this->assertStringNotContainsString('Carolina Dale', $instituicoes);
         $this->assertStringContainsString('Despite the great achievements', $resultado['marcador_inicio_corpo']);
         $this->assertSame('REFERENCES', $resultado['marcador_inicio_referencias']);
     }

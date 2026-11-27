@@ -8,6 +8,10 @@ namespace App\Support\Artigos;
  */
 class MontarHtmlTabelaDeTextoPdf
 {
+    public function __construct(
+        private readonly RepararEspacamentoLetrasDeTextoPdf $repararEspacamento = new RepararEspacamentoLetrasDeTextoPdf,
+    ) {}
+
     private const CABECALHOS = [
         'Genus',
         'Species',
@@ -43,7 +47,7 @@ class MontarHtmlTabelaDeTextoPdf
         $linhas = [];
 
         foreach ($textosPaginas as $texto) {
-            foreach ($this->linhasUteis($texto) as $linha) {
+            foreach ($this->linhasUteis($this->repararEspacamento->reparar($texto)) as $linha) {
                 $linhas[] = $linha;
             }
         }
@@ -419,7 +423,8 @@ class MontarHtmlTabelaDeTextoPdf
 
     private function pareceAno(string $token): bool
     {
-        return preg_match('/^(19|20)\d{2}$/u', $token) === 1;
+        // Triatominae TABLE I inclui espécies do séc. XIX (ex.: 1811, 1873).
+        return preg_match('/^(18|19|20)\d{2}$/u', $token) === 1;
     }
 
     private function pareceDna(string $token): bool
@@ -476,7 +481,7 @@ class MontarHtmlTabelaDeTextoPdf
 
     private function formatarCelula(string $cabecalho, string $valor): string
     {
-        $valor = trim($valor);
+        $valor = trim($this->repararEspacamento->reparar(trim($valor)));
 
         if ($valor === '') {
             return '';

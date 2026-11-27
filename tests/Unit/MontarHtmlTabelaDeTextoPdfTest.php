@@ -67,4 +67,74 @@ TXT;
         );
         $this->assertStringContainsString('Attalea butyracea and Oenocarpus bataua', $html);
     }
+
+    public function test_corrige_letras_espacadas_em_type_locality(): void
+    {
+        $texto = <<<'TXT'
+Genus
+Species
+Author
+Year
+Type locality
+Distribution
+Collection (Type)
+Ecotope
+DNA sequence
+Panstrongylus
+lignarius
+Walker
+2013
+Jacu nd á (1)
+Pará, Brazil
+Herman Lent Collection, Instituto Oswaldo Cruz, Rio de Janeiro, Brazil
+Dwellings
+-
+Triatoma
+dimidiata
+Latreille
+2011
+Tole d o (3)
+Belize
+Herman Lent Collection, Instituto Oswaldo Cruz, Rio de Janeiro, Brazil
+Near a cave
+Cytb
+TXT;
+
+        $html = (new MontarHtmlTabelaDeTextoPdf)->dePaginas([$texto]);
+
+        $this->assertStringContainsString('<td>Jacundá (1)</td>', $html);
+        $this->assertStringContainsString('<td>Toledo (3)</td>', $html);
+        $this->assertStringNotContainsString('Jacu nd', $html);
+        $this->assertStringNotContainsString('Tole d', $html);
+        $this->assertStringContainsString('Near a cave', $html);
+    }
+
+    public function test_aceita_anos_do_seculo_xix(): void
+    {
+        $texto = <<<'TXT'
+Genus
+Species
+Author
+Year
+Type locality
+Distribution
+Collection (Type)
+Ecotope
+DNA sequence
+Triatoma
+dimidiata
+Latreille
+1811
+Toledo (3)
+Belize
+Herman Lent Collection
+Near a cave
+Cytb
+TXT;
+
+        $html = (new MontarHtmlTabelaDeTextoPdf)->dePaginas([$texto]);
+
+        $this->assertStringContainsString('<td>1811</td>', $html);
+        $this->assertStringContainsString('<td>Toledo (3)</td>', $html);
+    }
 }

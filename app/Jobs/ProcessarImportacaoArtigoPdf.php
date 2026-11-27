@@ -14,6 +14,7 @@ use App\Support\Artigos\ExtrairTextoPdf;
 use App\Support\Artigos\ExtrairTextoTabelasDoPdf;
 use App\Support\Artigos\ExtrairTrechosNegritoDoPdf;
 use App\Support\Artigos\MontarArtigoLiteralDoPdf;
+use App\Support\Artigos\NormalizarMetadadosEditoriaisPdf;
 use App\Support\Artigos\ObterHtmlOriginalDoArtigoPorDoi;
 use App\Support\Artigos\PreferirConteudoHtmlOriginal;
 use App\Support\Artigos\RefinarMetadadosExtracaoPdf;
@@ -50,6 +51,7 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
         FormatarConteudoRicoComGemini $formatarRico,
         FormatarTabelaPdfComGemini $formatarTabela,
         EnriquecerHtmlLiteralDoPdf $enriquecerHtml,
+        NormalizarMetadadosEditoriaisPdf $normalizarMetadados,
         ObterHtmlOriginalDoArtigoPorDoi $obterHtmlOriginal,
         PreferirConteudoHtmlOriginal $preferirHtmlOriginal,
     ): void {
@@ -105,7 +107,7 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
         }
 
         $extracao = $montarLiteral->montar($textoPdf, $metadados);
-        $extracao = $this->enriquecerCamposMetadadoHtml($extracao, $enriquecerHtml);
+        $extracao = $this->enriquecerCamposMetadadoHtml($extracao, $enriquecerHtml, $normalizarMetadados);
 
         $this->importacao->atualizarProgresso(65, 'Extraindo imagens e tipografia do PDF...');
         $imagens = $extrairImagens->deCaminhoPublico($this->importacao->pdf_path);
@@ -131,6 +133,7 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
             $obterHtmlOriginal,
             $preferirHtmlOriginal,
             $enriquecerHtml,
+            $normalizarMetadados,
             $imagens,
             $trechosNegritoPdf,
         );
@@ -141,7 +144,7 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
             $tabelaPreferida = $formatarTabela->montarComFallbackLocal(
                 $this->importacao->pdf_path,
                 $textosTabelas,
-                'gemini-2.5-flash',
+                'gemini-2.5-pro',
             );
         }
 
@@ -259,6 +262,7 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
         ObterHtmlOriginalDoArtigoPorDoi $obterHtmlOriginal,
         PreferirConteudoHtmlOriginal $preferirHtmlOriginal,
         EnriquecerHtmlLiteralDoPdf $enriquecerHtml,
+        NormalizarMetadadosEditoriaisPdf $normalizarMetadados,
         array $imagens,
         array $trechosNegritoPdf = [],
     ): array {
@@ -285,7 +289,7 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
                 $trechosNegritoPdf,
             );
 
-            return $this->enriquecerCamposMetadadoHtml($mesclado, $enriquecerHtml);
+            return $this->enriquecerCamposMetadadoHtml($mesclado, $enriquecerHtml, $normalizarMetadados);
         } catch (Throwable $exception) {
             Log::warning('Não foi possível obter HTML original publicado; mantendo conteúdo do PDF.', [
                 'importacao_id' => $this->importacao->id,
@@ -301,8 +305,11 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
      * @param  array<string, mixed>  $extracao
      * @return array<string, mixed>
      */
-    private function enriquecerCamposMetadadoHtml(array $extracao, EnriquecerHtmlLiteralDoPdf $enriquecerHtml): array
-    {
+    private function enriquecerCamposMetadadoHtml(
+        array $extracao,
+        EnriquecerHtmlLiteralDoPdf $enriquecerHtml,
+        NormalizarMetadadosEditoriaisPdf $normalizarMetadados,
+    ): array {
         foreach (['resumo', 'endereco_instituicoes', 'autor_correspondente'] as $campo) {
             $valor = trim((string) ($extracao[$campo] ?? ''));
 
@@ -310,7 +317,11 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
                 continue;
             }
 
-            $extracao[$campo] = $enriquecerHtml->polirCampoRico($valor);
+            $extracao[$campo] = match ($campo) {
+                'endereco_instituicoes' => $normalizarMetadados->enderecoInstituicoes($valor),
+                'autor_correspondente' => $normalizarMetadados->autorCorrespondente($valor),
+                default => $enriquecerHtml->polirCampoRico($valor),
+            };
         }
 
         return $extracao;

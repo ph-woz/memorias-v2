@@ -14,6 +14,7 @@ class ExtrairTextoTabelasDoPdf
 {
     public function __construct(
         private readonly Parser $parser = new Parser,
+        private readonly RepararEspacamentoLetrasDeTextoPdf $repararEspacamento = new RepararEspacamentoLetrasDeTextoPdf,
     ) {}
 
     /**
@@ -49,7 +50,7 @@ class ExtrairTextoTabelasDoPdf
             }
 
             if ($this->paginaPareceTabelaLandscape($texto)) {
-                $textos[] = $texto;
+                $textos[] = $this->repararEspacamento->reparar($texto);
             }
         }
 

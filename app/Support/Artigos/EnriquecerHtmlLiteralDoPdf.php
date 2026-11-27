@@ -54,6 +54,8 @@ class EnriquecerHtmlLiteralDoPdf
         $html = $this->removerProsaDuplicadaDeTabela($html);
         $html = $this->garantirEspacosAoRedorDeMarcacao($html);
         $html = $this->removerParagrafosVazios($html);
+        // Artefato clássico de PDF landscape: "Jacu nd á" / "Tole d o" → palavras íntegras.
+        $html = (new RepararEspacamentoLetrasDeTextoPdf)->repararHtml($html);
 
         return trim($html);
     }
@@ -71,6 +73,10 @@ class EnriquecerHtmlLiteralDoPdf
         if ($html === '') {
             return $html;
         }
+
+        $repararEspacamento = new RepararEspacamentoLetrasDeTextoPdf;
+        // Sempre remove espaços artificiais ("Jacu nd á" → "Jacundá") antes de validar.
+        $html = $repararEspacamento->repararHtmlTabela($html);
 
         $temTabela = preg_match('/<table\b/i', $html) === 1;
         $corrompida = $temTabela && $this->tabelaHtmlCorrompida($html);
@@ -94,6 +100,7 @@ class EnriquecerHtmlLiteralDoPdf
             return trim($this->removerProsaDuplicadaDeTabela($html));
         }
 
+        $tabela = $repararEspacamento->repararHtmlTabela($tabela);
         $tabela = $this->envolverTabelasComScroll($tabela);
         $html = $this->anexarTabelaHtml($html, $tabela);
 
@@ -106,7 +113,21 @@ class EnriquecerHtmlLiteralDoPdf
             return true;
         }
 
-        return preg_match('/<tr[^>]*>\s*<td[^>]*>\s*(?:<em>)?\s*and\s*(?:<\/em>)?\s*<\/td>/i', $html) === 1;
+        if (preg_match('/<tr[^>]*>\s*<td[^>]*>\s*(?:<em>)?\s*and\s*(?:<\/em>)?\s*<\/td>/i', $html) === 1) {
+            return true;
+        }
+
+        $reparar = new RepararEspacamentoLetrasDeTextoPdf;
+
+        if (preg_match_all('/<(?:td|th)\b[^>]*>(.*?)<\/(?:td|th)>/is', $html, $celulas) > 0) {
+            foreach ($celulas[1] as $celula) {
+                if ($reparar->pareceEspacamentoArtificial((string) $celula)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private function removerTabelasHtml(string $html): string
