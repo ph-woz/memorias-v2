@@ -41,7 +41,7 @@ class NormalizarMetadadosEditoriaisPdf
             $texto,
         ) ?: [$texto];
 
-        $html = [];
+        $linhas = [];
 
         foreach ($partes as $parte) {
             $parte = trim(preg_replace('/\s+/u', ' ', $parte) ?? $parte);
@@ -61,10 +61,11 @@ class NormalizarMetadadosEditoriaisPdf
                 continue;
             }
 
-            $html[] = '<p>'.e($parte).'</p>';
+            $linhas[] = e($parte);
         }
 
-        return $html !== [] ? implode('', $html) : '<p>'.e(trim($texto)).'</p>';
+        // Uma linha por instituição com <br> — espaçamento do PDF, não margem de parágrafo.
+        return $this->blocoEditorialCompacto($linhas !== [] ? $linhas : [e(trim($texto))]);
     }
 
     public function autorCorrespondente(string $valor): string
@@ -102,20 +103,28 @@ class NormalizarMetadadosEditoriaisPdf
             $texto,
         ) ?? $texto;
 
-        $linhas = preg_split('/\n+/u', $texto) ?: [$texto];
-        $html = [];
+        $brutas = preg_split('/\n+/u', $texto) ?: [$texto];
+        $linhas = [];
 
-        foreach ($linhas as $linha) {
+        foreach ($brutas as $linha) {
             $linha = trim(preg_replace('/[ \t]+/u', ' ', $linha) ?? $linha);
 
             if ($linha === '') {
                 continue;
             }
 
-            $html[] = '<p>'.e($linha).'</p>';
+            $linhas[] = e($linha);
         }
 
-        return $html !== [] ? implode('', $html) : '<p>'.e($texto).'</p>';
+        return $this->blocoEditorialCompacto($linhas !== [] ? $linhas : [e($texto)]);
+    }
+
+    /**
+     * @param  list<string>  $linhasJaEscapadas
+     */
+    private function blocoEditorialCompacto(array $linhasJaEscapadas): string
+    {
+        return '<p>'.implode('<br>', $linhasJaEscapadas).'</p>';
     }
 
     private function textoPlano(string $htmlOuTexto): string

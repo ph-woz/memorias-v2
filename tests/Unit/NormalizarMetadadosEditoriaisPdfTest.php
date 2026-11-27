@@ -21,9 +21,10 @@ class NormalizarMetadadosEditoriaisPdfTest extends TestCase
         $this->assertStringNotContainsString('1 / +', $html);
         $this->assertStringNotContainsString('Carolina Dale', $html);
         $this->assertStringNotContainsString('Cleber Galvão', $html);
-        $this->assertSame(5, substr_count($html, '<p>'));
-        $this->assertStringContainsString('<p>1 Fundação Oswaldo Cruz-Fiocruz', $html);
-        $this->assertStringContainsString('<p>5 Institut de Recherche pour le Développement, Montpellier, France</p>', $html);
+        $this->assertSame(1, substr_count($html, '<p>'));
+        $this->assertSame(4, substr_count($html, '<br>'));
+        $this->assertStringContainsString('1 Fundação Oswaldo Cruz-Fiocruz', $html);
+        $this->assertStringContainsString('5 Institut de Recherche pour le Développement, Montpellier, France</p>', $html);
     }
 
     public function test_corta_abstract_colado_apos_instituicoes(): void
@@ -34,7 +35,8 @@ class NormalizarMetadadosEditoriaisPdfTest extends TestCase
 
         $html = (new NormalizarMetadadosEditoriaisPdf)->enderecoInstituicoes($bruto);
 
-        $this->assertSame(2, substr_count($html, '<p>'));
+        $this->assertSame(1, substr_count($html, '<p>'));
+        $this->assertSame(1, substr_count($html, '<br>'));
         $this->assertStringNotContainsString('Chagas disease', $html);
         $this->assertStringNotContainsString('Key words', $html);
     }
@@ -47,10 +49,12 @@ class NormalizarMetadadosEditoriaisPdfTest extends TestCase
 
         $html = (new NormalizarMetadadosEditoriaisPdf)->enderecoInstituicoes($bruto);
 
-        $this->assertSame(3, substr_count($html, '<p>'));
-        $this->assertStringContainsString('<p>1 Fundação Oswaldo Cruz-Fiocruz, Rio de Janeiro, RJ, Brasil</p>', $html);
-        $this->assertStringContainsString('<p>2 Institut de Recherche pour le Développement, Montpellier, France</p>', $html);
-        $this->assertStringContainsString('<p>3 Universidade Federal da Bahia, Salvador, BA, Brasil</p>', $html);
+        $this->assertSame(
+            '<p>1 Fundação Oswaldo Cruz-Fiocruz, Rio de Janeiro, RJ, Brasil<br>'
+            .'2 Institut de Recherche pour le Développement, Montpellier, France<br>'
+            .'3 Universidade Federal da Bahia, Salvador, BA, Brasil</p>',
+            $html,
+        );
     }
 
     public function test_restaura_quebras_do_autor_correspondente(): void
@@ -62,12 +66,13 @@ class NormalizarMetadadosEditoriaisPdfTest extends TestCase
 
         $html = (new NormalizarMetadadosEditoriaisPdf)->autorCorrespondente($bruto);
 
-        $this->assertGreaterThanOrEqual(5, substr_count($html, '<p>'));
-        $this->assertStringContainsString('<p>Financial support: CNPq, FAPESP (process no. 2016/08176-9), FAPERJ.</p>', $html);
-        $this->assertStringContainsString('<p>+ Corresponding author: jcosta@ioc.fiocruz.br</p>', $html);
-        $this->assertStringContainsString('<p>https://orcid.org/0000-0001-6664-1394</p>', $html);
-        $this->assertStringContainsString('<p>Received 14 January 2021</p>', $html);
-        $this->assertStringContainsString('<p>Accepted 04 May 2021</p>', $html);
+        $this->assertSame(1, substr_count($html, '<p>'));
+        $this->assertGreaterThanOrEqual(4, substr_count($html, '<br>'));
+        $this->assertStringContainsString('Financial support: CNPq, FAPESP (process no. 2016/08176-9), FAPERJ.<br>', $html);
+        $this->assertStringContainsString('+ Corresponding author: jcosta@ioc.fiocruz.br<br>', $html);
+        $this->assertStringContainsString('https://orcid.org/0000-0001-6664-1394<br>', $html);
+        $this->assertStringContainsString('Received 14 January 2021<br>', $html);
+        $this->assertStringContainsString('Accepted 04 May 2021</p>', $html);
         $this->assertStringNotContainsString('jcosta@ioc.fiocruz.br https://orcid.org', $html);
     }
 
@@ -82,10 +87,10 @@ class NormalizarMetadadosEditoriaisPdfTest extends TestCase
 
         $html = (new NormalizarMetadadosEditoriaisPdf)->autorCorrespondente($bruto);
 
-        $this->assertStringContainsString('<p>+ Corresponding author: jcosta@ioc.fiocruz.br</p>', $html);
-        $this->assertStringContainsString('<p>https://orcid.org/0000-0001-6664-1394</p>', $html);
-        $this->assertStringContainsString('<p>Received 14 January 2021</p>', $html);
-        $this->assertStringContainsString('<p>Accepted 04 May 2021</p>', $html);
+        $this->assertStringContainsString('+ Corresponding author: jcosta@ioc.fiocruz.br<br>', $html);
+        $this->assertStringContainsString('https://orcid.org/0000-0001-6664-1394<br>', $html);
+        $this->assertStringContainsString('Received 14 January 2021<br>', $html);
+        $this->assertStringContainsString('Accepted 04 May 2021</p>', $html);
         $this->assertStringNotContainsString('brhttps://orcid', $html);
     }
 }

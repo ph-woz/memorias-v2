@@ -72,7 +72,7 @@
                 @if (filled($artigo->endereco_instituicoes))
                     <div class="mt-4">
                         <p class="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-ink/45">{{ __('Endereço das instituições') }}</p>
-                        <div class="conteudo-rico prose prose-stone mt-2 max-w-none text-sm leading-relaxed text-ink-muted prose-p:my-1 prose-a:text-accent-deep">
+                        <div class="conteudo-rico conteudo-rico--editorial prose prose-stone mt-2 max-w-none text-ink-muted prose-a:text-accent-deep">
                             {!! $artigo->endereco_instituicoes !!}
                         </div>
                     </div>
@@ -136,10 +136,10 @@
                 @endif
 
                 @if (filled($artigo->autor_correspondente))
-                    <div class="mt-12 space-y-8 border-t border-ink/10 pt-10 text-base leading-relaxed text-ink-muted">
+                    <div class="mt-10 border-t border-ink/10 pt-8 text-ink-muted">
                         <div>
                             <p class="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-ink/45">{{ __('Autor correspondente') }}</p>
-                            <div class="conteudo-rico prose prose-stone mt-4 max-w-none prose-a:text-accent-deep">
+                            <div class="conteudo-rico conteudo-rico--editorial prose prose-stone mt-2 max-w-none prose-a:text-accent-deep">
                                 {!! $artigo->autor_correspondente !!}
                             </div>
                         </div>

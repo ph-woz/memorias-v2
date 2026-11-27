@@ -409,6 +409,23 @@
     line-height: 1.75;
 }
 
+/* Instituições / autor correspondente: bloco editorial compacto como no PDF. */
+.conteudo-rico--editorial {
+    font-size: 0.875rem;
+    line-height: 1.35;
+}
+
+.conteudo-rico--editorial.prose :where(p),
+.conteudo-rico--editorial p {
+    margin-top: 0;
+    margin-bottom: 0;
+    font-size: inherit;
+    line-height: inherit;
+    text-align: left;
+    text-indent: 0;
+    hyphens: manual;
+}
+
 /*
  * HTML SciELO/Memórias traz classes Bootstrap (.row, .col-*, .table)
  * que colidem com utilitários Tailwind (ex.: .table → display:table)
