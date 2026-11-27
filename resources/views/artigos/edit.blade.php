@@ -11,6 +11,7 @@
             form="formulario-artigo"
             name="acao"
             value="ver_no_site"
+            onclick="window.open('about:blank', 'memorias_ver_no_site')"
             class="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
         >
             <span>{{ __('Ver no site') }}</span>
@@ -37,6 +38,15 @@
             @if (session('status') === 'artigo-atualizado')
                 <div class="rounded-md bg-green-50 px-4 py-3 text-sm text-green-700">
                     {{ __('Artigo atualizado com sucesso.') }}
+                    @if (session('abrir_site_url'))
+                        <a
+                            id="abrir-site-fallback"
+                            href="{{ session('abrir_site_url') }}"
+                            target="memorias_ver_no_site"
+                            rel="noopener noreferrer"
+                            class="ml-2 font-semibold underline"
+                        >{{ __('Abrir no site') }}</a>
+                    @endif
                 </div>
             @endif
 
@@ -66,7 +76,15 @@
 
     @if (session('abrir_site_url'))
         <script>
-            window.open(@js(session('abrir_site_url')), '_blank', 'noopener,noreferrer');
+            (function () {
+                const url = @js(session('abrir_site_url'));
+                const win = window.open(url, 'memorias_ver_no_site');
+
+                if (win) {
+                    win.opener = null;
+                    win.focus();
+                }
+            })();
         </script>
     @endif
 </x-app-layout>

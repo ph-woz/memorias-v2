@@ -374,7 +374,8 @@ class ArtigoCrudTest extends TestCase
             ->assertSee('Ver no site')
             ->assertSee('name="acao"', false)
             ->assertSee('value="ver_no_site"', false)
-            ->assertSee('form="formulario-artigo"', false);
+            ->assertSee('form="formulario-artigo"', false)
+            ->assertSee("window.open('about:blank', 'memorias_ver_no_site')", false);
     }
 
     public function test_ver_no_site_salva_antes_de_abrir(): void
@@ -416,6 +417,8 @@ class ArtigoCrudTest extends TestCase
         $this->followRedirects($resposta)
             ->assertOk()
             ->assertSee('window.open', false)
+            ->assertSee('memorias_ver_no_site', false)
+            ->assertSee('abrir-site-fallback', false)
             ->assertSee('titulo-salvo-ao-ver', false);
     }
 
