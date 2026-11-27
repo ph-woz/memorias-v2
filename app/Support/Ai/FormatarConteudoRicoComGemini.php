@@ -117,6 +117,7 @@ class FormatarConteudoRicoComGemini
     ): array {
         $candidatos = array_values(array_unique(array_filter([
             $model,
+            'gemini-3.8-flash',
             'gemini-2.5-flash',
             'gemini-2.5-pro',
             'gemini-2.0-flash',
@@ -131,8 +132,10 @@ class FormatarConteudoRicoComGemini
             } catch (RuntimeException $exception) {
                 $ultimo = $exception;
 
+                // 404 = modelo descontinuado; tenta o próximo candidato.
                 if (! str_contains($exception->getMessage(), 'HTTP 503')
-                    && ! str_contains($exception->getMessage(), 'HTTP 429')) {
+                    && ! str_contains($exception->getMessage(), 'HTTP 429')
+                    && ! str_contains($exception->getMessage(), 'HTTP 404')) {
                     throw $exception;
                 }
             }

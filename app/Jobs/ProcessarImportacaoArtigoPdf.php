@@ -73,7 +73,7 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
 
         $provider = is_string(config('ai.default')) ? config('ai.default') : 'openai';
         $model = is_string(config('ai.models.text')) ? config('ai.models.text') : null;
-        $modelGemini = filled($model) ? $model : 'gemini-2.5-flash';
+        $modelGemini = filled($model) ? $model : 'gemini-3.8-flash';
 
         $this->importacao->atualizarProgresso(15, 'Extraindo texto do PDF...');
         $textoPdf = $extrairTextoPdf->deCaminhoPublico($this->importacao->pdf_path);
