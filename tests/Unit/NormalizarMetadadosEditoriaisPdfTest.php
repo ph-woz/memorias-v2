@@ -39,6 +39,20 @@ class NormalizarMetadadosEditoriaisPdfTest extends TestCase
         $this->assertStringNotContainsString('Key words', $html);
     }
 
+    public function test_separa_instituicoes_coladas_sem_espaco_antes_do_numero(): void
+    {
+        $bruto = '1 Fundação Oswaldo Cruz-Fiocruz, Rio de Janeiro, RJ, Brasil'
+            .'2 Institut de Recherche pour le Développement, Montpellier, France'
+            .'3 Universidade Federal da Bahia, Salvador, BA, Brasil';
+
+        $html = (new NormalizarMetadadosEditoriaisPdf)->enderecoInstituicoes($bruto);
+
+        $this->assertSame(3, substr_count($html, '<p>'));
+        $this->assertStringContainsString('<p>1 Fundação Oswaldo Cruz-Fiocruz, Rio de Janeiro, RJ, Brasil</p>', $html);
+        $this->assertStringContainsString('<p>2 Institut de Recherche pour le Développement, Montpellier, France</p>', $html);
+        $this->assertStringContainsString('<p>3 Universidade Federal da Bahia, Salvador, BA, Brasil</p>', $html);
+    }
+
     public function test_restaura_quebras_do_autor_correspondente(): void
     {
         $bruto = 'Financial support: CNPq, FAPESP (process no. 2016/08176-9), FAPERJ. '

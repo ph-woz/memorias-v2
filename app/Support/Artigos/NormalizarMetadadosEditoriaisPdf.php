@@ -35,8 +35,9 @@ class NormalizarMetadadosEditoriaisPdf
         // Remove marcadores "1 / +" residuais (nunca o número da afiliação institucional).
         $texto = preg_replace('/\b\d{1,2}\s*\/\s*\+\b/u', '', $texto) ?? $texto;
 
+        // "Brasil2 Fundação…" não tem \b entre letra e dígito — usa lookbehind \D.
         $partes = preg_split(
-            '/(?=\b\d{1,2}\s+(?:Fundação|Fundacao|Universidade|Institut[eo]?|Centro|College|University|Departamento|Department|Laborat)\b)/u',
+            '/(?<=\D)(?=\d{1,2}\s+(?:Fundação|Fundacao|Universidade|Institut[eo]?|Centro|College|University|Departamento|Department|Laborat)\b)/u',
             $texto,
         ) ?: [$texto];
 
