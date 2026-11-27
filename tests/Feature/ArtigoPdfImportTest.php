@@ -12,6 +12,7 @@ use App\Models\ArtigoImportacao;
 use App\Models\User;
 use App\Support\Ai\ExtrairArtigoComGemini;
 use App\Support\Ai\FormatarConteudoRicoComGemini;
+use App\Support\Ai\FormatarTabelaPdfComGemini;
 use App\Support\Artigos\EnriquecerHtmlLiteralDoPdf;
 use App\Support\Artigos\ExtrairImagensDoPdf;
 use App\Support\Artigos\ExtrairTextoPdf;
@@ -455,6 +456,7 @@ TXT.str_repeat(' Continuacao fiel do texto do autor.', 20)."\nREFERENCES\n1. Len
             $textosTabelas,
             $negrito,
             app(FormatarConteudoRicoComGemini::class),
+            app(FormatarTabelaPdfComGemini::class),
             app(EnriquecerHtmlLiteralDoPdf::class),
             app(ObterHtmlOriginalDoArtigoPorDoi::class),
             app(PreferirConteudoHtmlOriginal::class),

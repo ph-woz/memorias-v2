@@ -21,6 +21,17 @@ class MontarHtmlTabelaDeTextoPdf
     ];
 
     /**
+     * Gêneros de Triatominae desta TABLE I (e afins). Evita tratar
+     * plantas de ecotope (Attalea, Oenocarpus) ou marcadores DNA (Cytb) como Genus.
+     */
+    private const GENEROS = [
+        'Alberprosenia', 'Belminus', 'Cavernicola', 'Dipetalogaster', 'Eratyrus',
+        'Hermanlentia', 'Linshcosteus', 'Meccus', 'Mepraia', 'Nesotriatoma',
+        'Paleotriatoma', 'Panstrongylus', 'Paratriatoma', 'Psammolestes',
+        'Rhodnius', 'Triatoma', 'Torrealbaia',
+    ];
+
+    /**
      * @param  list<string>  $textosPaginas
      */
     public function dePaginas(array $textosPaginas, string $caption = 'TABLE I'): string
@@ -50,7 +61,7 @@ class MontarHtmlTabelaDeTextoPdf
             return '';
         }
 
-        $html = '<table><caption>'.e($caption).'</caption><thead><tr>';
+        $html = '<div class="tabela-pdf-scroll"><table><caption>'.e($caption).'</caption><thead><tr>';
 
         foreach (self::CABECALHOS as $cabecalho) {
             $html .= '<th>'.e($cabecalho).'</th>';
@@ -67,7 +78,7 @@ class MontarHtmlTabelaDeTextoPdf
             $html .= '</tr>';
         }
 
-        return $html.'</tbody></table>';
+        return $html.'</tbody></table></div>';
     }
 
     /**
@@ -192,8 +203,22 @@ class MontarHtmlTabelaDeTextoPdf
         while ($i < $total) {
             $token = $dados[$i];
 
-            if ($this->pareceGenus($token, $dados, $i)) {
+            if ($this->pareceGenusConhecido($token)) {
                 $genusAtual = $token;
+                $i++;
+
+                continue;
+            }
+
+            if ($this->pareceDna($token)) {
+                if ($linhas !== []) {
+                    $ultimo = array_key_last($linhas);
+                    if (trim($linhas[$ultimo]['DNA sequence']) === '') {
+                        $linhas[$ultimo]['DNA sequence'] = $token;
+                    } elseif (! str_contains($linhas[$ultimo]['DNA sequence'], $token)) {
+                        $linhas[$ultimo]['DNA sequence'] = trim($linhas[$ultimo]['DNA sequence'].' '.$token);
+                    }
+                }
                 $i++;
 
                 continue;
@@ -205,23 +230,45 @@ class MontarHtmlTabelaDeTextoPdf
                 continue;
             }
 
+            if (! $this->pareceEpithetSpecies($token)) {
+                if ($linhas !== [] && $this->pareceContinuacaoEcotope($token)) {
+                    $ultimo = array_key_last($linhas);
+                    $linhas[$ultimo]['Ecotope'] = trim($linhas[$ultimo]['Ecotope'].' '.$token);
+                }
+                $i++;
+
+                continue;
+            }
+
             $species = $token;
             $i++;
 
-            // asteriscos de nota (**) eventualmente na linha seguinte
             while ($i < $total && preg_match('/^\*+$/u', $dados[$i]) === 1) {
                 $species .= $dados[$i];
                 $i++;
             }
 
+            // Subespécie / epíteto composto: "brasiliensis macromelasoma**"
+            if ($i < $total && $this->pareceSegundoEpithet($dados[$i], $dados[$i + 1] ?? '')) {
+                $species .= ' '.$dados[$i];
+                $i++;
+                while ($i < $total && preg_match('/^\*+$/u', $dados[$i]) === 1) {
+                    $species .= $dados[$i];
+                    $i++;
+                }
+            }
+
             $authorParts = [];
             while ($i < $total && ! $this->pareceAno($dados[$i])) {
-                if ($this->pareceGenus($dados[$i], $dados, $i) && $authorParts !== []) {
+                if ($this->pareceGenusConhecido($dados[$i]) || $this->pareceEpithetSpecies($dados[$i])) {
+                    break;
+                }
+                if ($this->pareceDna($dados[$i])) {
                     break;
                 }
                 $authorParts[] = $dados[$i];
                 $i++;
-                if (count($authorParts) > 8) {
+                if (count($authorParts) > 12) {
                     break;
                 }
             }
@@ -231,42 +278,20 @@ class MontarHtmlTabelaDeTextoPdf
                 $i++;
             }
 
-            $locality = $i < $total ? $dados[$i] : '';
-            if ($locality !== '') {
-                $i++;
-            }
-
-            $distribution = $i < $total ? $dados[$i] : '';
-            if ($distribution !== '') {
-                $i++;
-            }
-
-            $collectionParts = [];
-            while ($i < $total && ! $this->pareceEcotopeOuDna($dados[$i], $dados, $i) && ! $this->pareceGenus($dados[$i], $dados, $i) && ! $this->pareceSpeciesSeguinte($dados[$i], $dados, $i)) {
-                $collectionParts[] = $dados[$i];
-                $i++;
-                if (count($collectionParts) > 6) {
+            $rest = [];
+            while ($i < $total) {
+                if ($this->pareceGenusConhecido($dados[$i]) || $this->pareceEpithetSpecies($dados[$i])) {
                     break;
                 }
-            }
-
-            $ecotope = '';
-            $dna = '';
-            if ($i < $total && ! $this->pareceGenus($dados[$i], $dados, $i) && ! $this->pareceSpeciesSeguinte($dados[$i], $dados, $i)) {
-                $ecotope = $dados[$i];
+                $rest[] = $dados[$i];
                 $i++;
-            }
-            if ($i < $total && ! $this->pareceGenus($dados[$i], $dados, $i) && ! $this->pareceSpeciesSeguinte($dados[$i], $dados, $i) && ! $this->pareceAno($dados[$i])) {
-                // se o que sobrou parece DNA (curto) e o ecotope já pegou texto longo, ok
-                if ($this->pareceDna($dados[$i]) || $ecotope !== '') {
-                    $dna = $dados[$i];
-                    $i++;
-                }
             }
 
             if (trim($species) === '' || $year === '') {
                 continue;
             }
+
+            [$locality, $distribution, $collection, $ecotope, $dna] = $this->repartirCamposFinais($rest);
 
             $linhas[] = [
                 'Genus' => $genusAtual,
@@ -275,7 +300,7 @@ class MontarHtmlTabelaDeTextoPdf
                 'Year' => $year,
                 'Type locality' => $locality,
                 'Distribution' => $distribution,
-                'Collection (Type)' => trim(implode(' ', $collectionParts)),
+                'Collection (Type)' => $collection,
                 'Ecotope' => $ecotope,
                 'DNA sequence' => $dna,
             ];
@@ -285,62 +310,79 @@ class MontarHtmlTabelaDeTextoPdf
     }
 
     /**
-     * @param  list<string>  $dados
+     * @param  list<string>  $rest
+     * @return array{0: string, 1: string, 2: string, 3: string, 4: string}
      */
-    private function pareceGenus(string $token, array $dados, int $indice): bool
+    private function repartirCamposFinais(array $rest): array
     {
-        if (preg_match('/^[A-Z][a-z]+$/u', $token) !== 1) {
-            return false;
+        $dnaParts = [];
+        while ($rest !== []) {
+            $last = $rest[array_key_last($rest)];
+            if ($this->pareceDna($last) || ($last === '-' && $dnaParts === [])) {
+                array_unshift($dnaParts, (string) array_pop($rest));
+
+                continue;
+            }
+            break;
+        }
+        $dna = trim(implode(' ', $dnaParts));
+
+        $ecotopeParts = [];
+        while ($rest !== []) {
+            $last = $rest[array_key_last($rest)];
+            if ($this->pareceEcotopeToken($last) || $this->pareceContinuacaoEcotope($last)) {
+                array_unshift($ecotopeParts, (string) array_pop($rest));
+
+                continue;
+            }
+            if (preg_match('/\b(altitude|desert|area|cave|rocks?|tree|dwellings?|ambar|amber|reserve|palm|coastal|formation)\b/iu', $last) === 1) {
+                array_unshift($ecotopeParts, (string) array_pop($rest));
+
+                continue;
+            }
+            break;
+        }
+        $ecotope = trim(implode(' ', $ecotopeParts));
+
+        $localityParts = [];
+        while ($rest !== []) {
+            $localityParts[] = (string) array_shift($rest);
+            if (preg_match('/\(\d+\)\s*$/u', implode(' ', $localityParts)) === 1) {
+                break;
+            }
+            if (count($localityParts) >= 4) {
+                break;
+            }
+        }
+        $locality = trim(implode(' ', $localityParts));
+
+        $distribution = '';
+        if ($rest !== []) {
+            $distribution = (string) array_shift($rest);
+            while ($rest !== [] && ! $this->pareceInicioColecao($rest[0])) {
+                $proximo = $rest[0];
+                if ($this->pareceEcotopeToken($proximo) || $this->pareceDna($proximo)) {
+                    break;
+                }
+                // Continuação geográfica curta (ex.: segunda linha de país/província).
+                if (preg_match('/^[A-Z(]/u', $proximo) === 1 && ! $this->pareceInicioColecao($proximo) && mb_strlen($distribution) < 120) {
+                    $distribution .= ' '.array_shift($rest);
+
+                    continue;
+                }
+                break;
+            }
         }
 
-        if (in_array($token, self::CABECALHOS, true)) {
-            return false;
-        }
+        $collection = trim(implode(' ', $rest));
 
-        // Genus seguido de species (minúscula) ou de outra linha taxonômica
-        $prox = $dados[$indice + 1] ?? '';
-
-        return $prox !== '' && preg_match('/^[a-z]/u', $prox) === 1;
+        return [$locality, trim($distribution), $collection, $ecotope, $dna];
     }
 
-    /**
-     * @param  list<string>  $dados
-     */
-    private function pareceSpeciesSeguinte(string $token, array $dados, int $indice): bool
+    private function pareceGenusConhecido(string $token): bool
     {
-        if (preg_match('/^[a-z][a-z\-]*\**$/u', $token) !== 1) {
-            return false;
-        }
-
-        $prox = $dados[$indice + 1] ?? '';
-
-        // species seguida de author (não ano imediato)
-        return $prox !== '' && ! $this->pareceAno($prox) && preg_match('/^[A-Z]/u', $prox) === 1;
-    }
-
-    private function pareceAno(string $token): bool
-    {
-        return preg_match('/^(19|20)\d{2}$/u', $token) === 1;
-    }
-
-    /**
-     * @param  list<string>  $dados
-     */
-    private function pareceEcotopeOuDna(string $token, array $dados, int $indice): bool
-    {
-        if ($this->pareceDna($token)) {
-            return true;
-        }
-
-        if ($token === '-') {
-            // "-" pode ser ecotope ou dna; se o próximo também é dna/-, trata como ecotope boundary
-            return true;
-        }
-
-        $curtos = ['Dwellings', 'Hollow tree', 'High altitude', 'Near a cave', 'Rock formation', 'Amber', 'Palm tree'];
-
-        foreach ($curtos as $eco) {
-            if (strcasecmp($token, $eco) === 0) {
+        foreach (self::GENEROS as $genero) {
+            if (strcasecmp($token, $genero) === 0) {
                 return true;
             }
         }
@@ -348,13 +390,88 @@ class MontarHtmlTabelaDeTextoPdf
         return false;
     }
 
-    private function pareceDna(string $token): bool
+    private function pareceEpithetSpecies(string $token): bool
     {
-        if ($token === '-') {
+        if ($this->pareceDna($token) || $this->pareceAno($token)) {
+            return false;
+        }
+
+        if (preg_match('/^(and|or|of|the|in|near|from|with|under|at|on)$/iu', $token) === 1) {
+            return false;
+        }
+
+        return preg_match('/^[a-z][a-z\-]*\**$/u', $token) === 1;
+    }
+
+    private function pareceSegundoEpithet(string $token, string $seguinte): bool
+    {
+        if (preg_match('/^[a-z][a-z\-]*\*+$/u', $token) === 1) {
             return true;
         }
 
-        return preg_match('/^(18S|28S|16S|Cytb|COI|ITS-?2|COII)(\s*,\s*(18S|28S|16S|Cytb|COI|ITS-?2|COII))*$/iu', $token) === 1;
+        if (preg_match('/^[a-z][a-z\-]+$/u', $token) !== 1) {
+            return false;
+        }
+
+        // "macromelasoma" + "**" na linha seguinte
+        return preg_match('/^\*+$/u', $seguinte) === 1;
+    }
+
+    private function pareceAno(string $token): bool
+    {
+        return preg_match('/^(19|20)\d{2}$/u', $token) === 1;
+    }
+
+    private function pareceDna(string $token): bool
+    {
+        $token = trim($token);
+
+        if ($token === '') {
+            return false;
+        }
+
+        // Marcadores isolados ou listas: "Cytb", "Cytb, 28S", "28S, 16S, 18S", "ITS-2 Cytb"
+        return preg_match(
+            '/^(?:-|(?:18S|28S|16S|Cytb|COI|COII|ITS-?[12])(?:\s*,\s*(?:18S|28S|16S|Cytb|COI|COII|ITS-?[12]))*)$/iu',
+            $token,
+        ) === 1
+            || preg_match('/^(?:18S|28S|16S|Cytb|COI|COII|ITS-?[12])(?:\s+(?:18S|28S|16S|Cytb|COI|COII|ITS-?[12]))+$/iu', $token) === 1;
+    }
+
+    private function pareceEcotopeToken(string $token): bool
+    {
+        if ($token === '-') {
+            return false;
+        }
+
+        $curtos = [
+            'Dwellings', 'Hollow tree', 'High altitude', 'Near a cave', 'Rock formation',
+            'Amber', 'Ambar', 'Palm tree', 'Coastal desert', 'Coastal area', 'Rocks',
+            'Under rocks', 'Rock outcrops', 'Domiciliary ecotopes',
+        ];
+
+        foreach ($curtos as $eco) {
+            if (strcasecmp($token, $eco) === 0) {
+                return true;
+            }
+        }
+
+        return preg_match('/^(Attalea|Oenocarpus|Maximilian|Orbignya|Mauritia)\b/iu', $token) === 1;
+    }
+
+    private function pareceContinuacaoEcotope(string $token): bool
+    {
+        if (preg_match('/^(and|or)$/iu', $token) === 1) {
+            return true;
+        }
+
+        return $this->pareceEcotopeToken($token)
+            || preg_match('/^(butyracea|bataua|speciosa|regia|phalerata|bacaba)\b/iu', $token) === 1;
+    }
+
+    private function pareceInicioColecao(string $token): bool
+    {
+        return preg_match('/\b(Collection|Colecci[oó]n|Museum|Museo|Instituto|Faculdade|Department|Herman|Rodolfo|Natural History|INPA|Ponair)\b/iu', $token) === 1;
     }
 
     private function formatarCelula(string $cabecalho, string $valor): string
@@ -366,7 +483,6 @@ class MontarHtmlTabelaDeTextoPdf
         }
 
         if (in_array($cabecalho, ['Genus', 'Species'], true)) {
-            // species pode ter ** no fim
             if (preg_match('/^(.+?)(\*+)$/u', $valor, $m) === 1) {
                 return '<em>'.e($m[1]).'</em>'.e($m[2]);
             }

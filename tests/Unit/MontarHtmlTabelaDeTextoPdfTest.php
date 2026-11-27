@@ -2,33 +2,69 @@
 
 namespace Tests\Unit;
 
-use App\Support\Artigos\ExtrairTextoTabelasDoPdf;
 use App\Support\Artigos\MontarHtmlTabelaDeTextoPdf;
-use Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 class MontarHtmlTabelaDeTextoPdfTest extends TestCase
 {
-    public function test_monta_table_html_a_partir_do_texto_das_paginas_landscape(): void
+    public function test_nao_trata_cytb_como_genus_nem_and_como_species(): void
     {
-        $fixture = base_path('tests/Fixtures/Artigos/triatomine-landscape-table.pdf');
+        $texto = <<<'TXT'
+Genus
+Species
+Author
+Year
+Type locality
+Distribution
+Collection (Type)
+Ecotope
+DNA sequence
+Rhodnius
+barretti
+Abad-Franch, Palomeque & Monteiro
+2013
+Puerto Asís (19)
+Departament of Putumayo, Colombia
+Herman Lent Collection, Instituto Oswaldo Cruz, Rio de Janeiro, Brazil
+Attalea butyracea
+and
+Oenocarpus bataua
+-
+colombiensis
+Mejia, Galvão & Jurberg
+1999
+Totarco (20)
+Coyaima, Colombia
+Herman Lent Collection, Instituto Oswaldo Cruz, Rio de Janeiro, Brazil
+Attalea butyracea
+Cytb, 16S, 18S
+micki
+Zhao, Galvão & Cai
+2021
+Santa Cruz, Saavedra (22)
+Bolivia
+Natural History Museum, UK
+-
+-
+TXT;
 
-        if (! is_file($fixture)) {
-            $this->markTestSkipped('Fixture PDF ausente.');
-        }
+        $html = (new MontarHtmlTabelaDeTextoPdf)->dePaginas([$texto]);
 
-        $textos = (new ExtrairTextoTabelasDoPdf)->deArquivo($fixture);
-
-        $this->assertNotEmpty($textos);
-
-        $html = (new MontarHtmlTabelaDeTextoPdf)->dePaginas($textos);
-
-        $this->assertStringContainsString('<table', $html);
-        $this->assertStringContainsString('<caption>TABLE I</caption>', $html);
-        $this->assertStringContainsString('<th>Type locality</th>', $html);
-        $this->assertStringContainsString('<th>DNA sequence</th>', $html);
-        $this->assertStringContainsString('<em>Alberprosenia</em>', $html);
-        $this->assertStringContainsString('<em>malheiroi</em>', $html);
-        $this->assertStringContainsString('1987', $html);
-        $this->assertGreaterThanOrEqual(10, substr_count($html, '<tr>'));
+        $this->assertStringContainsString('tabela-pdf-scroll', $html);
+        $this->assertStringNotContainsString('<td><em>Cytb</em></td>', $html);
+        $this->assertDoesNotMatchRegularExpression('/<tr[^>]*>\s*<td[^>]*>\s*(?:<em>)?\s*and\s*</i', $html);
+        $this->assertMatchesRegularExpression(
+            '/<em>Rhodnius<\/em><\/td><td><em>colombiensis<\/em>/i',
+            $html,
+        );
+        $this->assertMatchesRegularExpression(
+            '/<em>Rhodnius<\/em><\/td><td><em>micki<\/em>/i',
+            $html,
+        );
+        $this->assertMatchesRegularExpression(
+            '/colombiensis<\/em><\/td><td>[^<]*Mejia[^<]*<\/td><td>1999<\/td>.*?Cytb, 16S, 18S/is',
+            $html,
+        );
+        $this->assertStringContainsString('Attalea butyracea and Oenocarpus bataua', $html);
     }
 }

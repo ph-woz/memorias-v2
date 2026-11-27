@@ -453,6 +453,21 @@
     margin-bottom: 0;
 }
 
+.conteudo-rico .tabela-pdf-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    margin: 1.5rem 0;
+    border: 1px solid #e7e5e4;
+    background: #fff;
+}
+
+.conteudo-rico .tabela-pdf-scroll > table {
+    margin: 0;
+}
+
 .editor-conteudo .ProseMirror table,
 .conteudo-rico table {
     border-collapse: collapse;

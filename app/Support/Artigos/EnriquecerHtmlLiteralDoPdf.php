@@ -60,27 +60,75 @@ class EnriquecerHtmlLiteralDoPdf
 
     /**
      * Garante table HTML a partir do texto das páginas landscape do PDF
-     * quando o corpo ainda não tem table (ex.: Gemini omitiu).
+     * quando o corpo ainda não tem table (ou a table veio corrompida).
      *
      * @param  list<string>  $textosPaginasTabela
      */
-    public function garantirTabelaHtml(string $html, array $textosPaginasTabela): string
+    public function garantirTabelaHtml(string $html, array $textosPaginasTabela, ?string $tabelaPreferida = null): string
     {
         $html = trim($html);
 
-        if ($html === '' || preg_match('/<table\b/i', $html) === 1) {
-            return $this->removerProsaDuplicadaDeTabela($html);
-        }
-
-        $tabela = (new MontarHtmlTabelaDeTextoPdf)->dePaginas($textosPaginasTabela);
-
-        if ($tabela === '') {
+        if ($html === '') {
             return $html;
         }
 
+        $temTabela = preg_match('/<table\b/i', $html) === 1;
+        $corrompida = $temTabela && $this->tabelaHtmlCorrompida($html);
+
+        if ($temTabela && ! $corrompida) {
+            $html = $this->envolverTabelasComScroll($html);
+
+            return trim($this->removerProsaDuplicadaDeTabela($html));
+        }
+
+        if ($corrompida) {
+            $html = $this->removerTabelasHtml($html);
+        }
+
+        $tabela = trim((string) $tabelaPreferida);
+        if ($tabela === '' || preg_match('/<table\b/i', $tabela) !== 1) {
+            $tabela = (new MontarHtmlTabelaDeTextoPdf)->dePaginas($textosPaginasTabela);
+        }
+
+        if ($tabela === '') {
+            return trim($this->removerProsaDuplicadaDeTabela($html));
+        }
+
+        $tabela = $this->envolverTabelasComScroll($tabela);
         $html = $this->anexarTabelaHtml($html, $tabela);
 
         return trim($this->removerProsaDuplicadaDeTabela($html));
+    }
+
+    public function tabelaHtmlCorrompida(string $html): bool
+    {
+        if (preg_match('/<tr[^>]*>\s*<td[^>]*>\s*(?:<em>)?\s*(?:Cytb|COI|COII|18S|28S|16S|ITS)/i', $html) === 1) {
+            return true;
+        }
+
+        return preg_match('/<tr[^>]*>\s*<td[^>]*>\s*(?:<em>)?\s*and\s*(?:<\/em>)?\s*<\/td>/i', $html) === 1;
+    }
+
+    private function removerTabelasHtml(string $html): string
+    {
+        $html = (string) preg_replace('/<div\b[^>]*class="[^"]*tabela-pdf-scroll[^"]*"[^>]*>\s*<table\b.*?<\/table>\s*<\/div>/is', '', $html);
+        $html = (string) preg_replace('/<table\b.*?<\/table>/is', '', $html);
+
+        return trim($html);
+    }
+
+    private function envolverTabelasComScroll(string $html): string
+    {
+        if (str_contains($html, 'tabela-pdf-scroll')) {
+            return $html;
+        }
+
+        return (string) preg_replace(
+            '/(<table\b.*?<\/table>)/is',
+            '<div class="tabela-pdf-scroll">$1</div>',
+            $html,
+            1,
+        );
     }
 
     /**

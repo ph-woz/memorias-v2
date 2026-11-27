@@ -7,6 +7,7 @@ use App\Ai\Agents\ExtrairArtigoDoPdf;
 use App\Models\ArtigoImportacao;
 use App\Support\Ai\ExtrairArtigoComGemini;
 use App\Support\Ai\FormatarConteudoRicoComGemini;
+use App\Support\Ai\FormatarTabelaPdfComGemini;
 use App\Support\Artigos\EnriquecerHtmlLiteralDoPdf;
 use App\Support\Artigos\ExtrairImagensDoPdf;
 use App\Support\Artigos\ExtrairTextoPdf;
@@ -47,6 +48,7 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
         ExtrairTextoTabelasDoPdf $extrairTextoTabelas,
         ExtrairTrechosNegritoDoPdf $extrairNegritoPdf,
         FormatarConteudoRicoComGemini $formatarRico,
+        FormatarTabelaPdfComGemini $formatarTabela,
         EnriquecerHtmlLiteralDoPdf $enriquecerHtml,
         ObterHtmlOriginalDoArtigoPorDoi $obterHtmlOriginal,
         PreferirConteudoHtmlOriginal $preferirHtmlOriginal,
@@ -69,7 +71,7 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
 
         $provider = is_string(config('ai.default')) ? config('ai.default') : 'openai';
         $model = is_string(config('ai.models.text')) ? config('ai.models.text') : null;
-        $modelGemini = filled($model) ? $model : 'gemini-3.5-flash-lite';
+        $modelGemini = filled($model) ? $model : 'gemini-2.5-flash';
 
         $this->importacao->atualizarProgresso(15, 'Extraindo texto do PDF...');
         $textoPdf = $extrairTextoPdf->deCaminhoPublico($this->importacao->pdf_path);
@@ -133,9 +135,20 @@ class ProcessarImportacaoArtigoPdf implements ShouldQueue
             $trechosNegritoPdf,
         );
 
+        $tabelaPreferida = '';
+        if ($textosTabelas !== [] && $provider === 'gemini') {
+            $this->importacao->atualizarProgresso(88, 'Montando TABLE I com modelo Gemini mais capaz...');
+            $tabelaPreferida = $formatarTabela->montarComFallbackLocal(
+                $this->importacao->pdf_path,
+                $textosTabelas,
+                'gemini-2.5-flash',
+            );
+        }
+
         $extracao['conteudo_html'] = $enriquecerHtml->garantirTabelaHtml(
             (string) ($extracao['conteudo_html'] ?? ''),
             $textosTabelas,
+            $tabelaPreferida !== '' ? $tabelaPreferida : null,
         );
 
         $this->importacao->atualizarProgresso(90, 'Criando rascunho do artigo...');
