@@ -82,6 +82,56 @@ class PaginaCrudTest extends TestCase
         ]);
     }
 
+    public function test_edicao_mostra_ver_no_site(): void
+    {
+        $usuario = User::factory()->create();
+        $pagina = Pagina::factory()->create([
+            'titulo' => 'Sobre',
+            'slug' => 'sobre',
+            'ativo' => false,
+        ]);
+
+        $this->actingAs($usuario)
+            ->get(route('paginas.edit', $pagina))
+            ->assertOk()
+            ->assertSee('Ver no site')
+            ->assertSee('value="ver_no_site"', false)
+            ->assertSee('form="formulario-pagina"', false)
+            ->assertSee("window.open('about:blank', 'memorias_ver_no_site')", false);
+    }
+
+    public function test_ver_no_site_salva_pagina_antes_de_abrir(): void
+    {
+        $usuario = User::factory()->create();
+        $pagina = Pagina::factory()->create([
+            'titulo' => 'Antiga',
+            'slug' => 'antiga',
+            'ativo' => true,
+        ]);
+
+        $resposta = $this->actingAs($usuario)
+            ->put(route('paginas.update', $pagina), [
+                'titulo' => 'Sobre o instituto',
+                'slug' => 'sobre-o-instituto',
+                'conteudo' => '<p>Atualizado</p>',
+                'ativo' => true,
+                'acao' => 'ver_no_site',
+            ]);
+
+        $paginaAtualizada = $pagina->fresh();
+
+        $resposta
+            ->assertRedirect(route('paginas.edit', $paginaAtualizada))
+            ->assertSessionHas('status', 'pagina-atualizada')
+            ->assertSessionHas('abrir_site_url', $paginaAtualizada->urlPublica());
+
+        $this->followRedirects($resposta)
+            ->assertOk()
+            ->assertSee('memorias_ver_no_site', false)
+            ->assertSee('abrir-site-fallback', false)
+            ->assertSee('sobre-o-instituto', false);
+    }
+
     public function test_pagina_ativa_fica_disponivel_na_url_publica(): void
     {
         $pagina = Pagina::factory()->create([

@@ -37,6 +37,7 @@ class UpdatePaginaRequest extends FormRequest
             'seo_titulo' => ['nullable', 'string', 'max:70'],
             'seo_descricao' => ['nullable', 'string', 'max:160'],
             'seo_palavras_chave' => ['nullable', 'string', 'max:255'],
+            'acao' => ['nullable', 'string', Rule::in(['ver_no_site'])],
         ];
     }
 

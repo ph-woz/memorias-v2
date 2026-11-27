@@ -135,6 +135,55 @@ class CategoriaCrudTest extends TestCase
         ]);
     }
 
+    public function test_edicao_mostra_ver_no_site(): void
+    {
+        $usuario = User::factory()->create();
+        $categoria = Categoria::factory()->create([
+            'nome' => 'Reviews',
+            'slug' => 'reviews',
+        ]);
+
+        $this->actingAs($usuario)
+            ->get(route('categorias.edit', $categoria))
+            ->assertOk()
+            ->assertSee('Ver no site')
+            ->assertSee('value="ver_no_site"', false)
+            ->assertSee('form="formulario-categoria"', false)
+            ->assertSee("window.open('about:blank', 'memorias_ver_no_site')", false);
+    }
+
+    public function test_ver_no_site_salva_categoria_antes_de_abrir(): void
+    {
+        $usuario = User::factory()->create();
+        $categoria = Categoria::factory()->create([
+            'nome' => 'Antiga',
+            'slug' => 'antiga',
+        ]);
+
+        $resposta = $this->actingAs($usuario)
+            ->put(route('categorias.update', $categoria), [
+                'nome' => 'Reviews',
+                'slug' => 'reviews',
+                'acao' => 'ver_no_site',
+            ]);
+
+        $categoriaAtualizada = $categoria->fresh();
+
+        $resposta
+            ->assertRedirect(route('categorias.edit', $categoriaAtualizada))
+            ->assertSessionHas('status', 'categoria-atualizada')
+            ->assertSessionHas(
+                'abrir_site_url',
+                route('site.categorias.show', $categoriaAtualizada),
+            );
+
+        $this->followRedirects($resposta)
+            ->assertOk()
+            ->assertSee('memorias_ver_no_site', false)
+            ->assertSee('abrir-site-fallback', false)
+            ->assertSee('reviews', false);
+    }
+
     public function test_usuario_pode_excluir_categoria(): void
     {
         $usuario = User::factory()->create();

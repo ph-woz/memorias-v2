@@ -1,44 +1,32 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-            <h2 class="truncate text-lg font-semibold leading-tight text-gray-800">
-                {{ __('Editar página') }}
-            </h2>
-            @if ($pagina->ativo)
-                <a
-                    href="{{ $pagina->urlPublica() }}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="text-sm font-medium text-indigo-600 hover:text-indigo-500"
-                >
-                    {{ __('Ver no site') }}
-                </a>
-            @endif
-        </div>
+        <h2 class="truncate text-lg font-semibold leading-tight text-gray-800">
+            {{ __('Editar página') }}
+        </h2>
+    </x-slot>
+
+    <x-slot name="headerActions">
+        <x-ver-no-site-button form="formulario-pagina" />
     </x-slot>
 
     <div class="py-8">
         <div class="mx-auto max-w-7xl space-y-4 px-4 sm:px-6 lg:px-8">
-            @if (session('status') === 'pagina-criada')
-                <div class="rounded-md bg-green-50 px-4 py-3 text-sm text-green-700">
-                    {{ __('Página criada com sucesso.') }}
-                </div>
-            @endif
-
-            @if (session('status') === 'pagina-atualizada')
-                <div class="rounded-md bg-green-50 px-4 py-3 text-sm text-green-700">
-                    {{ __('Página atualizada com sucesso.') }}
-                </div>
-            @endif
+            <x-status-sucesso quando="pagina-criada" :mensagem="__('Página criada com sucesso.')" />
+            <x-status-sucesso quando="pagina-atualizada" :mensagem="__('Página atualizada com sucesso.')" />
 
             <div class="rounded-lg bg-white p-6 shadow-sm sm:p-8">
-                <form method="POST" action="{{ route('paginas.update', $pagina) }}" class="space-y-6">
+                <form
+                    id="formulario-pagina"
+                    method="POST"
+                    action="{{ route('paginas.update', $pagina) }}"
+                    class="space-y-6"
+                >
                     @csrf
                     @method('PUT')
 
                     @include('paginas.partials.form', ['pagina' => $pagina])
 
-                    <div class="flex items-center justify-end gap-3">
+                    <div class="flex items-center justify-end gap-3 border-t border-gray-100 pt-6">
                         <a href="{{ route('paginas.index') }}" class="text-sm text-gray-600 hover:text-gray-900">
                             {{ __('Voltar') }}
                         </a>
@@ -48,4 +36,6 @@
             </div>
         </div>
     </div>
+
+    <x-abrir-site-apos-salvar />
 </x-app-layout>

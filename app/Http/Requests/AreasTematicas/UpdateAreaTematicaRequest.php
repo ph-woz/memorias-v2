@@ -31,6 +31,7 @@ class UpdateAreaTematicaRequest extends FormRequest
                 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
                 Rule::unique('areas_tematicas', 'slug')->ignore($areaTematica->id),
             ],
+            'acao' => ['nullable', 'string', Rule::in(['ver_no_site'])],
         ];
     }
 

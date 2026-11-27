@@ -6,49 +6,14 @@
     </x-slot>
 
     <x-slot name="headerActions">
-        <button
-            type="submit"
-            form="formulario-artigo"
-            name="acao"
-            value="ver_no_site"
-            onclick="window.open('about:blank', 'memorias_ver_no_site')"
-            class="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-        >
-            <span>{{ __('Ver no site') }}</span>
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-            </svg>
-        </button>
+        <x-ver-no-site-button form="formulario-artigo" />
     </x-slot>
 
     <div class="py-8">
         <div class="mx-auto max-w-7xl space-y-4 px-4 sm:px-6 lg:px-8">
-            @if (session('status') === 'artigo-criado')
-                <div class="rounded-md bg-green-50 px-4 py-3 text-sm text-green-700">
-                    {{ __('Artigo criado com sucesso.') }}
-                </div>
-            @endif
-
-            @if (session('status') === 'artigo-importado')
-                <div class="rounded-md bg-green-50 px-4 py-3 text-sm text-green-700">
-                    {{ __('Artigo importado do PDF. Revise as abas antes de publicar.') }}
-                </div>
-            @endif
-
-            @if (session('status') === 'artigo-atualizado')
-                <div class="rounded-md bg-green-50 px-4 py-3 text-sm text-green-700">
-                    {{ __('Artigo atualizado com sucesso.') }}
-                    @if (session('abrir_site_url'))
-                        <a
-                            id="abrir-site-fallback"
-                            href="{{ session('abrir_site_url') }}"
-                            target="memorias_ver_no_site"
-                            rel="noopener noreferrer"
-                            class="ml-2 font-semibold underline"
-                        >{{ __('Abrir no site') }}</a>
-                    @endif
-                </div>
-            @endif
+            <x-status-sucesso quando="artigo-criado" :mensagem="__('Artigo criado com sucesso.')" />
+            <x-status-sucesso quando="artigo-importado" :mensagem="__('Artigo importado do PDF. Revise as abas antes de publicar.')" />
+            <x-status-sucesso quando="artigo-atualizado" :mensagem="__('Artigo atualizado com sucesso.')" />
 
             <div class="rounded-lg bg-white p-6 shadow-sm sm:p-8">
                 <form
@@ -74,17 +39,5 @@
         </div>
     </div>
 
-    @if (session('abrir_site_url'))
-        <script>
-            (function () {
-                const url = @js(session('abrir_site_url'));
-                const win = window.open(url, 'memorias_ver_no_site');
-
-                if (win) {
-                    win.opener = null;
-                    win.focus();
-                }
-            })();
-        </script>
-    @endif
+    <x-abrir-site-apos-salvar />
 </x-app-layout>

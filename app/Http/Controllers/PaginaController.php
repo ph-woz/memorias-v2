@@ -119,9 +119,17 @@ class PaginaController extends Controller
             'seo_palavras_chave' => $dados['seo_palavras_chave'] ?? null,
         ]);
 
-        return redirect()
+        $pagina->refresh();
+
+        $redirect = redirect()
             ->route('paginas.edit', $pagina)
             ->with('status', 'pagina-atualizada');
+
+        if ($request->input('acao') === 'ver_no_site') {
+            $redirect->with('abrir_site_url', $pagina->urlPublica());
+        }
+
+        return $redirect;
     }
 
     public function destroy(Pagina $pagina): RedirectResponse

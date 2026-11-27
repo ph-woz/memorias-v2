@@ -64,6 +64,55 @@ class AreaTematicaCrudTest extends TestCase
         ]);
     }
 
+    public function test_edicao_mostra_ver_no_site(): void
+    {
+        $usuario = User::factory()->create();
+        $areaTematica = AreaTematica::factory()->create([
+            'nome' => 'Epidemiologia',
+            'slug' => 'epidemiologia',
+        ]);
+
+        $this->actingAs($usuario)
+            ->get(route('areas_tematicas.edit', $areaTematica))
+            ->assertOk()
+            ->assertSee('Ver no site')
+            ->assertSee('value="ver_no_site"', false)
+            ->assertSee('form="formulario-area-tematica"', false)
+            ->assertSee("window.open('about:blank', 'memorias_ver_no_site')", false);
+    }
+
+    public function test_ver_no_site_salva_area_tematica_antes_de_abrir(): void
+    {
+        $usuario = User::factory()->create();
+        $areaTematica = AreaTematica::factory()->create([
+            'nome' => 'Antiga',
+            'slug' => 'antiga',
+        ]);
+
+        $resposta = $this->actingAs($usuario)
+            ->put(route('areas_tematicas.update', $areaTematica), [
+                'nome' => 'Vetores',
+                'slug' => 'vetores',
+                'acao' => 'ver_no_site',
+            ]);
+
+        $areaAtualizada = $areaTematica->fresh();
+
+        $resposta
+            ->assertRedirect(route('areas_tematicas.edit', $areaAtualizada))
+            ->assertSessionHas('status', 'area-tematica-atualizada')
+            ->assertSessionHas(
+                'abrir_site_url',
+                route('site.areas_tematicas.show', $areaAtualizada),
+            );
+
+        $this->followRedirects($resposta)
+            ->assertOk()
+            ->assertSee('memorias_ver_no_site', false)
+            ->assertSee('abrir-site-fallback', false)
+            ->assertSee('vetores', false);
+    }
+
     public function test_usuario_pode_excluir_area_tematica(): void
     {
         $usuario = User::factory()->create();

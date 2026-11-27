@@ -103,9 +103,17 @@ class AreaTematicaController extends Controller
             'slug' => $slug,
         ]);
 
-        return redirect()
+        $areaTematica->refresh();
+
+        $redirect = redirect()
             ->route('areas_tematicas.edit', $areaTematica)
             ->with('status', 'area-tematica-atualizada');
+
+        if ($request->input('acao') === 'ver_no_site') {
+            $redirect->with('abrir_site_url', route('site.areas_tematicas.show', $areaTematica));
+        }
+
+        return $redirect;
     }
 
     public function destroy(AreaTematica $areaTematica): RedirectResponse

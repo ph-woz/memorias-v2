@@ -126,9 +126,17 @@ class CategoriaController extends Controller
 
         $categoria->update($atributos);
 
-        return redirect()
+        $categoria->refresh();
+
+        $redirect = redirect()
             ->route('categorias.edit', $categoria)
             ->with('status', 'categoria-atualizada');
+
+        if ($request->input('acao') === 'ver_no_site') {
+            $redirect->with('abrir_site_url', route('site.categorias.show', $categoria));
+        }
+
+        return $redirect;
     }
 
     public function destroy(Categoria $categoria): RedirectResponse
