@@ -25,6 +25,13 @@ class NormalizarMetadadosEditoriaisPdf
             $texto = trim($m[1]);
         }
 
+        // Corta abstract/corpo/sidebar colados após a última afiliação.
+        $texto = preg_replace(
+            '/\s+(?:Chagas disease|Abstract\b|Resumo\b|BACKGROUND\b|Key words?:|doi:|Financial support:|Despite the).*$/isu',
+            '',
+            $texto,
+        ) ?? $texto;
+
         // Remove marcadores "1 / +" residuais (nunca o número da afiliação institucional).
         $texto = preg_replace('/\b\d{1,2}\s*\/\s*\+\b/u', '', $texto) ?? $texto;
 
@@ -48,6 +55,11 @@ class NormalizarMetadadosEditoriaisPdf
                 continue;
             }
 
+            // Descarta pedaços que claramente não são afiliação.
+            if (preg_match('/\b(Chagas disease|Abstract|Key words?|Financial support)\b/iu', $parte) === 1) {
+                continue;
+            }
+
             $html[] = '<p>'.e($parte).'</p>';
         }
 
@@ -62,19 +74,29 @@ class NormalizarMetadadosEditoriaisPdf
             return '';
         }
 
+        // Corta prosa do corpo colada após Accepted.
+        $texto = preg_replace('/\s+Despite the .*$/isu', '', $texto) ?? $texto;
+        $texto = preg_replace('/\s+How to cite:.*/isu', '', $texto) ?? $texto;
+        $texto = preg_replace('/\s+Handling editor:.*/isu', '', $texto) ?? $texto;
+
         // Restaura quebras do layout Memórias (Financial → Corresponding → ORCID → Received → Accepted).
         $texto = preg_replace(
             '/\s*\+?\s*(Corresponding authors?\s*:)/iu',
             "\n+ $1",
             $texto,
         ) ?? $texto;
+
+        // Também quando ORCID/Received/Accepted colam sem espaço no e-mail.
+        $texto = preg_replace('/(?<=\S)(?=https?:\/\/orcid\.org\/)/iu', "\n", $texto) ?? $texto;
         $texto = preg_replace('/\s+(https?:\/\/orcid\.org\/\S+)/iu', "\n$1", $texto) ?? $texto;
+        $texto = preg_replace('/(?<=\S)(?=Received\s+\d{1,2}\s+\w+\s+\d{4})/iu', "\n", $texto) ?? $texto;
         $texto = preg_replace('/\s+(Received\s+\d{1,2}\s+\w+\s+\d{4})/iu', "\n$1", $texto) ?? $texto;
+        $texto = preg_replace('/(?<=\S)(?=Accepted\s+\d{1,2}\s+\w+\s+\d{4})/iu', "\n", $texto) ?? $texto;
         $texto = preg_replace('/\s+(Accepted\s+\d{1,2}\s+\w+\s+\d{4})/iu', "\n$1", $texto) ?? $texto;
 
-        // Segunda linha típica do funding (productivity grant).
+        // Segunda linha típica do funding (productivity grant), com ou sem espaço após o ponto.
         $texto = preg_replace(
-            '/(FAPERJ\.)\s+(JC,|[A-Z]{2,}(?:,\s*[A-Z]{2,})*\s+and\s+[A-Z]{2,}\s+are\b)/u',
+            '/(FAPERJ\.)\s*(JC,|[A-Z]{2,}(?:,\s*[A-Z]{2,})*\s+and\s+[A-Z]{2,}\s+are\b)/u',
             "$1\n$2",
             $texto,
         ) ?? $texto;
