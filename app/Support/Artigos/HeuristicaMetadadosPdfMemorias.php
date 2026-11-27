@@ -27,12 +27,14 @@ class HeuristicaMetadadosPdfMemorias
             }
         }
 
-        if ($this->listaVazia($metadados['autores'] ?? null)) {
-            $autores = $this->extrairAutores($inicio);
+        $autoresExtraidos = $this->extrairAutores($inicio);
 
-            if ($autores !== []) {
-                $metadados['autores'] = $autores;
+        if ($this->listaVazia($metadados['autores'] ?? null)) {
+            if ($autoresExtraidos !== []) {
+                $metadados['autores'] = $autoresExtraidos;
             }
+        } elseif ($autoresExtraidos !== [] && $this->autoresSemMarcadores($metadados['autores'])) {
+            $metadados['autores'] = $this->fundirMarcadoresAutores($metadados['autores'], $autoresExtraidos);
         }
 
         if ($this->campoVazio($metadados['endereco_instituicoes'] ?? null)) {
@@ -128,36 +130,108 @@ class HeuristicaMetadadosPdfMemorias
     }
 
     /**
-     * @return list<string>
+     * @return list<array{nome: string, marcadores: ?string}>
      */
     private function extrairAutores(string $inicio): array
     {
-        // Nomes próprios seguidos de índice de afiliação em linha própria (layout Memórias).
+        // Nome próprio + índices de afiliação em linhas próprias (ex.: "1", "/", "+", "3,4"),
+        // parando antes da próxima vírgula de autor ou da primeira instituição numerada.
+        $nome = '[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){1,4}';
+        $token = '(?:\d{1,2}(?:,\d{1,2})*|[\/+])';
+        $lookahead = '(?=\s*(?:,|\n\s*\d{1,2}\s*\n\s*(?:Fundação|Fundacao|Universidade|Institut|Centro|College|University|Departamento|Department|Laborat)))';
+
         if (preg_match_all(
-            '/(?:,\s*)?([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){1,4})\s*\n\s*[\d,\/\+]+/u',
+            '/(?:,\s*)?('.$nome.')\s*\n\s*((?:'.$token.')(?:\s*\n\s*'.$token.')*)'.$lookahead.'/u',
             $inicio,
             $matches,
+            PREG_SET_ORDER,
         ) === 0) {
             return [];
         }
 
         $autores = [];
 
-        foreach ($matches[1] as $nome) {
-            $nome = trim($nome);
+        foreach ($matches as $match) {
+            $nomeAutor = trim($match[1]);
+            $marcadores = $this->compactarMarcadores($match[2]);
 
-            if ($nome === '' || mb_strlen($nome) < 5) {
+            if ($nomeAutor === '' || mb_strlen($nomeAutor) < 5) {
                 continue;
             }
 
-            if (preg_match('/\b(institut|universit|fundação|fundacao|laborat|france|brasil|brazil)\b/iu', $nome) === 1) {
+            if (preg_match('/\b(institut|universit|fundação|fundacao|laborat|france|brasil|brazil)\b/iu', $nomeAutor) === 1) {
                 continue;
             }
 
-            $autores[] = $nome;
+            $autores[$nomeAutor] = [
+                'nome' => $nomeAutor,
+                'marcadores' => $marcadores !== '' ? $marcadores : null,
+            ];
         }
 
-        return array_values(array_unique($autores));
+        return array_values($autores);
+    }
+
+    private function compactarMarcadores(string $raw): string
+    {
+        return preg_replace('/\s+/u', '', $raw) ?? $raw;
+    }
+
+    /**
+     * @param  list<mixed>  $autores
+     */
+    private function autoresSemMarcadores(array $autores): bool
+    {
+        foreach ($autores as $autor) {
+            if (is_array($autor) && filled($autor['marcadores'] ?? null)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @param  list<mixed>  $atuais
+     * @param  list<array{nome: string, marcadores: ?string}>  $extraidos
+     * @return list<array{nome: string, marcadores: ?string}>
+     */
+    private function fundirMarcadoresAutores(array $atuais, array $extraidos): array
+    {
+        $marcadoresPorNome = [];
+
+        foreach ($extraidos as $extraido) {
+            $marcadoresPorNome[mb_strtolower($extraido['nome'])] = $extraido['marcadores'];
+        }
+
+        $resultado = [];
+
+        foreach ($atuais as $autor) {
+            if (is_array($autor)) {
+                $nome = trim((string) ($autor['nome'] ?? ''));
+                $marcadores = isset($autor['marcadores']) ? trim((string) $autor['marcadores']) : '';
+            } else {
+                $nome = trim((string) $autor);
+                $marcadores = '';
+            }
+
+            if ($nome === '') {
+                continue;
+            }
+
+            $chave = mb_strtolower($nome);
+
+            if ($marcadores === '' && array_key_exists($chave, $marcadoresPorNome)) {
+                $marcadores = (string) ($marcadoresPorNome[$chave] ?? '');
+            }
+
+            $resultado[] = [
+                'nome' => $nome,
+                'marcadores' => $marcadores !== '' ? $marcadores : null,
+            ];
+        }
+
+        return $resultado !== [] ? $resultado : $extraidos;
     }
 
     private function extrairInstituicoes(string $inicio): ?string
@@ -405,6 +479,14 @@ class HeuristicaMetadadosPdfMemorias
         }
 
         foreach ($valor as $item) {
+            if (is_array($item)) {
+                if (trim((string) ($item['nome'] ?? '')) !== '') {
+                    return false;
+                }
+
+                continue;
+            }
+
             if (trim((string) $item) !== '') {
                 return false;
             }

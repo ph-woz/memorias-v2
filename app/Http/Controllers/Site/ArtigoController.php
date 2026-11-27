@@ -11,7 +11,7 @@ class ArtigoController extends Controller
     public function __invoke(Artigo $artigo): View
     {
         $artigo->load([
-            'autores:id,artigo_id,nome,ordem',
+            'autores:id,artigo_id,nome,marcadores_afiliacao,ordem',
             'referencias:id,artigo_id,texto,ordem',
             'documentos:id,artigo_id,titulo,arquivo,url,ordem',
             'categorias:id,nome,slug',
@@ -34,7 +34,7 @@ class ArtigoController extends Controller
             )
             ->with([
                 'categorias:id,nome,slug',
-                'autores:id,artigo_id,nome,ordem',
+                'autores:id,artigo_id,nome,marcadores_afiliacao,ordem',
             ])
             ->latest('publicado_em')
             ->limit(3)

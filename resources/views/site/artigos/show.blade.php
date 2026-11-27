@@ -65,7 +65,7 @@
 
                 @if ($artigo->autores->isNotEmpty())
                     <p class="mt-6 text-sm font-medium text-ink-muted">
-                        {{ $artigo->autores->pluck('nome')->join(', ') }}
+                        {!! $artigo->autores->map(fn ($autor) => $autor->nomeComMarcadoresHtml())->join(', ') !!}
                     </p>
                 @endif
 

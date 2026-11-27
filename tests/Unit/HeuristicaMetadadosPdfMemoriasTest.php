@@ -22,9 +22,19 @@ Jane Costa
 1
 , Cleber Galvão
 2
+, Carlos Eduardo Almeida
+3,4
+, Jean Pierre Dujardin
+5
 1
 Fundação Oswaldo Cruz-Fiocruz, Instituto Oswaldo Cruz, Laboratório de Biodiversidade Entomológica, Rio de Janeiro, RJ, Brasil
 2
+Institut de Recherche pour le Développement, Montpellier, France
+3
+Universidade Federal do Pará, Belém, PA, Brasil
+4
+Universidade Federal do Rio de Janeiro, Rio de Janeiro, RJ, Brasil
+5
 Institut de Recherche pour le Développement, Montpellier, France
 Chagas disease persists as one of the most important, and yet most neglected, diseases in the world, and several changes in
 its epidemiological aspects have been recorded since its discovery. Currently, some of the most relevant changes are related to
@@ -45,8 +55,13 @@ TXT;
 
         $this->assertStringContainsString('Do the new triatomine species pose new challenges', $resultado['titulo']);
         $this->assertSame('10.1590/0074-02760210015', $resultado['doi']);
-        $this->assertContains('Jane Costa', $resultado['autores']);
-        $this->assertContains('Carolina Dale', $resultado['autores']);
+        $this->assertSame([
+            ['nome' => 'Jane Costa', 'marcadores' => '1/+'],
+            ['nome' => 'Carolina Dale', 'marcadores' => '1'],
+            ['nome' => 'Cleber Galvão', 'marcadores' => '2'],
+            ['nome' => 'Carlos Eduardo Almeida', 'marcadores' => '3,4'],
+            ['nome' => 'Jean Pierre Dujardin', 'marcadores' => '5'],
+        ], $resultado['autores']);
         $this->assertContains('American Trypanosomiasis', $resultado['palavras_chave']);
         $this->assertStringStartsWith('Chagas disease persists', $resultado['resumo']);
         $correspondente = (string) $resultado['autor_correspondente'];
@@ -62,6 +77,37 @@ TXT;
         $this->assertStringNotContainsString('Carolina Dale', $instituicoes);
         $this->assertStringContainsString('Despite the great achievements', $resultado['marcador_inicio_corpo']);
         $this->assertSame('REFERENCES', $resultado['marcador_inicio_referencias']);
+    }
+
+    public function test_fundir_marcadores_quando_gemini_retorna_nomes_sem_indices(): void
+    {
+        $texto = <<<'TXT'
+REVIEW
+Do the new triatomine species pose new challenges or strategies
+for monitoring Chagas disease? An overview from 1979-2021
+Jane Costa
+1
+/
++
+, Carolina Dale
+1
+1
+Fundação Oswaldo Cruz-Fiocruz, Instituto Oswaldo Cruz, Laboratório de Biodiversidade Entomológica, Rio de Janeiro, RJ, Brasil
+Chagas disease persists as one of the most important neglected diseases.
+Key words: American Trypanosomiasis - vectors
+doi: 10.1590/0074-02760210015
+Accepted 04 May 2021
+Despite the great achievements in controlling Chagas disease remain.
+TXT;
+
+        $resultado = (new HeuristicaMetadadosPdfMemorias)->completar($texto, [
+            'autores' => ['Jane Costa', 'Carolina Dale'],
+        ]);
+
+        $this->assertSame([
+            ['nome' => 'Jane Costa', 'marcadores' => '1/+'],
+            ['nome' => 'Carolina Dale', 'marcadores' => '1'],
+        ], $resultado['autores']);
     }
 
     public function test_substitui_email_isolado_pelo_bloco_editorial_completo(): void

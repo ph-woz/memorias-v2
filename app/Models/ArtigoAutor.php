@@ -17,6 +17,7 @@ class ArtigoAutor extends Model
     protected $fillable = [
         'artigo_id',
         'nome',
+        'marcadores_afiliacao',
         'ordem',
     ];
 
@@ -30,5 +31,19 @@ class ArtigoAutor extends Model
     public function artigo(): BelongsTo
     {
         return $this->belongsTo(Artigo::class);
+    }
+
+    /**
+     * Nome do autor com índices de afiliação em <sup>, como no PDF.
+     */
+    public function nomeComMarcadoresHtml(): string
+    {
+        $html = e($this->nome);
+
+        if (filled($this->marcadores_afiliacao)) {
+            $html .= '<sup>'.e($this->marcadores_afiliacao).'</sup>';
+        }
+
+        return $html;
     }
 }

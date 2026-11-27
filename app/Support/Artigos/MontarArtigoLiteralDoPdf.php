@@ -121,6 +121,24 @@ class MontarArtigoLiteralDoPdf
             $ancorados = [];
 
             foreach ($itens as $item) {
+                if ($lista === 'autores' && is_array($item)) {
+                    $nome = trim((string) ($item['nome'] ?? ''));
+
+                    if ($nome === '') {
+                        continue;
+                    }
+
+                    $ancora = $this->ancorarTrecho($textoPdf, $nome);
+                    $marcadores = isset($item['marcadores']) ? trim((string) $item['marcadores']) : '';
+
+                    $ancorados[] = [
+                        'nome' => $ancora ?? $nome,
+                        'marcadores' => $marcadores !== '' ? $marcadores : null,
+                    ];
+
+                    continue;
+                }
+
                 $valor = trim((string) $item);
 
                 if ($valor === '') {
@@ -230,6 +248,24 @@ class MontarArtigoLiteralDoPdf
             $validos = [];
 
             foreach ($itens as $item) {
+                if ($lista === 'autores' && is_array($item)) {
+                    $nome = trim((string) ($item['nome'] ?? ''));
+
+                    if ($nome === '') {
+                        continue;
+                    }
+
+                    if ($this->validador->localizarTrechoLiteral($textoPdf, $nome) !== null) {
+                        $marcadores = isset($item['marcadores']) ? trim((string) $item['marcadores']) : '';
+                        $validos[] = [
+                            'nome' => $nome,
+                            'marcadores' => $marcadores !== '' ? $marcadores : null,
+                        ];
+                    }
+
+                    continue;
+                }
+
                 $valor = trim((string) $item);
 
                 if ($valor === '') {

@@ -161,15 +161,28 @@ class Artigo extends Model
     }
 
     /**
-     * @param  list<string>  $nomes
+     * @param  list<string|array{nome: string, marcadores?: ?string}>  $autores
      */
-    public function sincronizarAutores(array $nomes): void
+    public function sincronizarAutores(array $autores): void
     {
         $this->autores()->delete();
 
-        foreach ($nomes as $ordem => $nome) {
+        foreach ($autores as $ordem => $autor) {
+            if (is_array($autor)) {
+                $nome = trim((string) ($autor['nome'] ?? ''));
+                $marcadores = trim((string) ($autor['marcadores'] ?? ''));
+            } else {
+                $nome = trim((string) $autor);
+                $marcadores = '';
+            }
+
+            if ($nome === '') {
+                continue;
+            }
+
             $this->autores()->create([
                 'nome' => $nome,
+                'marcadores_afiliacao' => $marcadores !== '' ? $marcadores : null,
                 'ordem' => $ordem,
             ]);
         }

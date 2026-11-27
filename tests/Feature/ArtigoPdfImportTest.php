@@ -19,6 +19,7 @@ use App\Support\Artigos\ExtrairTextoPdf;
 use App\Support\Artigos\ExtrairTextoTabelasDoPdf;
 use App\Support\Artigos\ExtrairTrechosNegritoDoPdf;
 use App\Support\Artigos\MontarArtigoLiteralDoPdf;
+use App\Support\Artigos\NormalizarMetadadosEditoriaisPdf;
 use App\Support\Artigos\ObterHtmlOriginalDoArtigoPorDoi;
 use App\Support\Artigos\PreferirConteudoHtmlOriginal;
 use App\Support\Artigos\RefinarMetadadosExtracaoPdf;
@@ -91,11 +92,15 @@ REVIEW
 Do the new triatomine species pose new challenges or strategies for monitoring Chagas disease? An overview from 1979-2021
 Jane Costa
 1
+/
++
 , Carolina Dale
 1
+, Cleber Galvão
+2
 1
 Fundação Oswaldo Cruz-Fiocruz, Instituto Oswaldo Cruz, Rio de Janeiro, RJ, Brasil
-5
+2
 Institut de Recherche pour le Développement, Montpellier, France
 Chagas disease persists as one of the most important, and yet most neglected, diseases in the world, and several changes in its epidemiological aspects have been recorded since its discovery.
 Key words: American Trypanosomiasis - vectors - Triatominae subfamily
@@ -129,6 +134,9 @@ TXT.str_repeat(' Continuacao fiel do texto do autor.', 25)."\nREFERENCES\n1. Len
         $this->assertSame('10.1590/0074-02760210015', $artigo->doi);
         $this->assertStringContainsString('Despite the great achievements', $artigo->conteudo);
         $this->assertStringContainsString('Jane Costa', $artigo->autores()->pluck('nome')->implode(', '));
+        $this->assertSame('1/+', $artigo->autores()->where('nome', 'Jane Costa')->value('marcadores_afiliacao'));
+        $this->assertSame('1', $artigo->autores()->where('nome', 'Carolina Dale')->value('marcadores_afiliacao'));
+        $this->assertSame('2', $artigo->autores()->where('nome', 'Cleber Galvão')->value('marcadores_afiliacao'));
         $this->assertGreaterThan(1, substr_count($artigo->conteudo, '<p'));
         $this->assertStringContainsString('<em>Triatoma infestans</em>', $artigo->conteudo);
         $this->assertStringContainsString('<sup>', $artigo->conteudo);
@@ -458,6 +466,7 @@ TXT.str_repeat(' Continuacao fiel do texto do autor.', 20)."\nREFERENCES\n1. Len
             app(FormatarConteudoRicoComGemini::class),
             app(FormatarTabelaPdfComGemini::class),
             app(EnriquecerHtmlLiteralDoPdf::class),
+            app(NormalizarMetadadosEditoriaisPdf::class),
             app(ObterHtmlOriginalDoArtigoPorDoi::class),
             app(PreferirConteudoHtmlOriginal::class),
         );

@@ -59,7 +59,11 @@ class ValidarFidelidadeExtracaoPdf
             }
 
             foreach ($itens as $indice => $item) {
-                $valor = trim((string) $item);
+                if ($lista === 'autores' && is_array($item)) {
+                    $valor = trim((string) ($item['nome'] ?? ''));
+                } else {
+                    $valor = trim((string) $item);
+                }
 
                 if ($valor === '') {
                     continue;

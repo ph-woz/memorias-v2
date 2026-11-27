@@ -228,19 +228,54 @@ class ExtrairArtigoRicoDoHtmlMemorias
     }
 
     /**
-     * @return list<string>
+     * @return list<array{nome: string, marcadores: ?string}>
      */
     private function nomesDeAutores(string $autoresHtml): array
     {
+        if (preg_match_all(
+            '/([^,<]+?)(?:\s*<sup>\s*([^<]*?)\s*<\/sup>)?\s*(?:,|$)/iu',
+            $autoresHtml,
+            $matches,
+            PREG_SET_ORDER,
+        ) > 0) {
+            $autores = [];
+
+            foreach ($matches as $match) {
+                $nome = trim(html_entity_decode(strip_tags($match[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                $nome = trim(preg_replace('/\s+/u', ' ', $nome) ?? $nome);
+                $marcadores = isset($match[2]) ? preg_replace('/\s+/u', '', $match[2]) : '';
+
+                if (mb_strlen($nome) < 5) {
+                    continue;
+                }
+
+                $autores[] = [
+                    'nome' => $nome,
+                    'marcadores' => $marcadores !== '' ? $marcadores : null,
+                ];
+            }
+
+            if ($autores !== []) {
+                return $autores;
+            }
+        }
+
         $texto = html_entity_decode(strip_tags($autoresHtml), ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $texto = preg_replace('/\d+/u', '', $texto) ?? $texto;
         $texto = str_replace(['+', '/'], ' ', $texto);
         $partes = preg_split('/\s*,\s*/u', $texto) ?: [];
 
         return array_values(array_filter(array_map(
-            static fn (string $nome): string => trim(preg_replace('/\s+/u', ' ', $nome) ?? ''),
+            static function (string $nome): array {
+                $nome = trim(preg_replace('/\s+/u', ' ', $nome) ?? '');
+
+                return [
+                    'nome' => $nome,
+                    'marcadores' => null,
+                ];
+            },
             $partes,
-        ), static fn (string $nome): bool => mb_strlen($nome) >= 5));
+        ), static fn (array $autor): bool => mb_strlen($autor['nome']) >= 5));
     }
 
     /**

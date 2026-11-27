@@ -31,7 +31,7 @@ class CriarArtigoAPartirDaExtracaoPdfAction
             }
 
             $slugBase = $this->texto($extracao['slug'] ?? null) ?? $titulo;
-            $autores = $this->listaTextos($extracao['autores'] ?? [], 255);
+            $autores = $this->listaAutores($extracao['autores'] ?? []);
 
             if ($autores === []) {
                 throw new RuntimeException('Não é possível criar o artigo sem autores literais extraídos do PDF.');
@@ -152,6 +152,50 @@ class CriarArtigoAPartirDaExtracaoPdfAction
             }
 
             $itens[] = Str::limit($texto, $max, '');
+        }
+
+        return array_values($itens);
+    }
+
+    /**
+     * @return list<array{nome: string, marcadores: ?string}>
+     */
+    private function listaAutores(mixed $valores): array
+    {
+        if (! is_array($valores)) {
+            return [];
+        }
+
+        $itens = [];
+
+        foreach ($valores as $valor) {
+            if (is_array($valor)) {
+                $nome = $this->texto($valor['nome'] ?? null);
+
+                if ($nome === null) {
+                    continue;
+                }
+
+                $marcadores = $this->texto($valor['marcadores'] ?? null);
+
+                $itens[] = [
+                    'nome' => Str::limit($nome, 255, ''),
+                    'marcadores' => $marcadores !== null ? Str::limit($marcadores, 50, '') : null,
+                ];
+
+                continue;
+            }
+
+            $texto = $this->texto($valor);
+
+            if ($texto === null) {
+                continue;
+            }
+
+            $itens[] = [
+                'nome' => Str::limit($texto, 255, ''),
+                'marcadores' => null,
+            ];
         }
 
         return array_values($itens);
