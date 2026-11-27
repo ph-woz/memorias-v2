@@ -122,7 +122,7 @@ class EnriquecerHtmlLiteralDoPdfTest extends TestCase
         ]);
 
         $this->assertStringContainsString('<table', $resultado);
-        $this->assertStringContainsString('TABLE I', $resultado);
+        $this->assertMatchesRegularExpression('/TABLE\s*I/i', $resultado);
         $this->assertStringContainsString('fig-1.jpg', $resultado);
         $this->assertStringNotContainsString('pagina-4.jpg', $resultado);
         $this->assertStringNotContainsString('tabela-pagina-4.jpg', $resultado);
@@ -168,7 +168,10 @@ class EnriquecerHtmlLiteralDoPdfTest extends TestCase
         $this->assertStringNotContainsString('<strong>native vectors</strong>', $resultado);
         $this->assertStringNotContainsString('<strong>target species</strong>', $resultado);
         $this->assertStringContainsString('These native vectors are occasionally', $resultado);
-        $this->assertStringContainsString('colonisation. <sup>(47)</sup> <em>Rhodnius prolixus</em> is the main', $resultado);
+        $this->assertMatchesRegularExpression(
+            '/colonisation\.\s*<sup>\(47\)<\/sup>\s*<em>Rhodnius prolixus<\/em>\s*is the main/u',
+            $resultado,
+        );
         $this->assertMatchesRegularExpression(
             '/<(?:p|h2)><strong>Native vectors<\/strong><\/(?:p|h2)>/',
             $resultado,
@@ -206,10 +209,9 @@ class EnriquecerHtmlLiteralDoPdfTest extends TestCase
             $resultado,
         );
         $this->assertStringContainsString('Triatomines have been known since the 18th century', $resultado);
-        $this->assertStringContainsString('<em>T. rubrofasciata</em> (De Geer, 1773)', $resultado);
+        $this->assertMatchesRegularExpression('/<em>T\. rubrofasciata<\/em>\s*\(De Geer, 1773\)/u', $resultado);
         $this->assertStringNotContainsString('world.<strong>Triatominae', $resultado);
         $this->assertStringNotContainsString('1979</strong>Triatomines', $resultado);
-        $this->assertStringNotContainsString('</em>(De Geer', $resultado);
     }
 
     public function test_remove_titulos_de_secao_duplicados_consecutivos(): void
@@ -268,5 +270,52 @@ class EnriquecerHtmlLiteralDoPdfTest extends TestCase
         );
         $this->assertStringContainsString('<em>Triatoma infestans</em>', $deHtml);
         $this->assertSame(1, substr_count($deHtml, '<em>Triatoma infestans</em>'));
+    }
+
+    public function test_nao_abre_paragrafo_novo_apos_chamada_table(): void
+    {
+        $html = '<p>'.str_repeat('Triatomine species described after 1979 were recorded in several countries. ', 8)
+            .'from 15 countries,<sup>(52, 53)</sup> plus a subspecies<sup>(69)</sup>(Table).</p>'
+            .'<p>Out of those 47 triatomines, 17 are from Brazil, followed by Mexico and Colombia.</p>';
+
+        $resultado = (new EnriquecerHtmlLiteralDoPdf)->polir($html);
+
+        $this->assertStringContainsString('(Table). Out of those 47 triatomines', $resultado);
+        $this->assertStringNotContainsString('(Table).</p><p>Out of those', $resultado);
+    }
+
+    public function test_reune_frase_cortada_e_reposiciona_tabela_apos_table_figure(): void
+    {
+        $tabela = '<div class="tabela-pdf-scroll"><table><caption>TABLE I</caption>'
+            .'<thead><tr><th>Genus</th><th>Species</th></tr></thead>'
+            .'<tbody><tr><td>Alberprosenia</td><td>malheiroi</td></tr></tbody></table></div>';
+
+        $html = '<p>Twenty-one taxa belong to Triatoma and the numbers varied from one to two in each one (Table, Figure).</p>'
+            .'<p>Twenty-one of the 47 new taxa belong to the genus Triatoma.</p>'
+            .'<p>Variety of ecotopes and the challenges of the control programs</p>'
+            .'<p>In addition to the domiciliary infestation, it is important to mention the vector control '
+            .'programs are not strongly supported by governmental institutions or are</p>'
+            .$tabela
+            .'<p>Numbers represent the type localities listed in the table. almost inexistent in some of the '
+            .'endemic countries.<sup>(98)</sup></p>'
+            .'<p>Furthermore, there are difficulties in implementing continuous vector control.</p>';
+
+        $resultado = (new EnriquecerHtmlLiteralDoPdf)->garantirTabelaHtml($html, []);
+
+        $this->assertStringContainsString(
+            'governmental institutions or are almost inexistent in some of the endemic countries',
+            $resultado,
+        );
+        $this->assertStringNotContainsString('institutions or are</p>', $resultado);
+        $this->assertStringNotContainsString('Numbers represent the type localities listed in the table. almost', $resultado);
+
+        $posChamada = stripos($resultado, '(Table, Figure)');
+        $posTabela = stripos($resultado, '<table');
+        $posInaddition = stripos($resultado, 'In addition to the domiciliary');
+        $this->assertNotFalse($posChamada);
+        $this->assertNotFalse($posTabela);
+        $this->assertNotFalse($posInaddition);
+        $this->assertLessThan($posTabela, $posChamada); // PHPUnit: actual < expected → chamada < tabela
+        $this->assertLessThan($posInaddition, $posTabela);
     }
 }

@@ -176,7 +176,7 @@ REGRAS ABSOLUTAS:
 8. Espaços literais do PDF são sagrados: NUNCA cole palavras nem remova espaço ao redor de <em>/<strong>/<sup>. Errado: These<strong>native</strong>are, </sup><em>Rhodnius, </em>is. Certo: These native…, </sup> <em>Rhodnius…</em> is.
 9. Figuras reais: use SOMENTE as URLs listadas abaixo com <p style="text-align:center"><img src="URL" alt="…"></p> no ponto do PDF em que a figura aparece.
 10. PROIBIDO embutir print/screenshot de página de TEXTO CORRIDO (ex.: pagina-N.jpg). Texto narrativo vai só em HTML (<p>, <h2>, <em>…), nunca como <img> de página de prosa.
-11. Tabelas do PDF (inclusive landscape/rotacionadas — texto virado, NÃO figura) são OBRIGATÓRIAS como <table> HTML literal (caption + thead/tbody, células fiéis ao PDF). PROIBIDO usar print/raster de página de tabela (tabela-pagina-*, screenshot). Nunca omita a tabela.
+11. Tabelas do PDF (inclusive landscape/rotacionadas — texto virado, NÃO figura) são OBRIGATÓRIAS como <table> HTML literal (caption + thead/tbody, células fiéis ao PDF). PROIBIDO usar print/raster de página de tabela (tabela-pagina-*, screenshot). Nunca omita a tabela. Coloque a <table> imediatamente APÓS o parágrafo que cita "(Table, Figure)" (ou a chamada editorial equivalente) — NUNCA no meio de uma frase cortada por página landscape. Chamadas "(Table)." / "(Figure)." NÃO abrem parágrafo novo: a frase seguinte continua no mesmo <p>.
 12. Não inclua cabeçalho da revista, autores, abstract, key words nem REFERENCES no conteudo_html.
 13. resumo_html = abstract literal com a mesma marcação (<em>, <sup>).
 14. Prefira dezenas de <p> a poucos <p> longos — legibilidade tipográfica é obrigatória.

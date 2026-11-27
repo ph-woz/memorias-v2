@@ -46,6 +46,7 @@ class EnriquecerHtmlLiteralDoPdf
         $html = $this->garantirEspacosAoRedorDeMarcacao($html);
         $html = $this->aplicarTrechosNegritoDoPdf($html, $trechosNegritoPdf);
         $html = $this->repartirParagrafosLongos($html);
+        $html = $this->fundirQuebrasAposChamadaTabelaFigura($html);
         $html = $this->aplicarTipografiaPreservandoTags($html);
         $html = $this->promoverTitulosSecaoInline($html);
         $html = $this->removerTitulosSecaoDuplicados($html);
@@ -83,6 +84,8 @@ class EnriquecerHtmlLiteralDoPdf
 
         if ($temTabela && ! $corrompida) {
             $html = $this->envolverTabelasComScroll($html);
+            $html = $this->repararContinuacaoCortadaPorTabela($html);
+            $html = $this->fundirQuebrasAposChamadaTabelaFigura($html);
 
             return trim($this->removerProsaDuplicadaDeTabela($html));
         }
@@ -103,6 +106,8 @@ class EnriquecerHtmlLiteralDoPdf
         $tabela = $repararEspacamento->repararHtmlTabela($tabela);
         $tabela = $this->envolverTabelasComScroll($tabela);
         $html = $this->anexarTabelaHtml($html, $tabela);
+        $html = $this->repararContinuacaoCortadaPorTabela($html);
+        $html = $this->fundirQuebrasAposChamadaTabelaFigura($html);
 
         return trim($this->removerProsaDuplicadaDeTabela($html));
     }
@@ -691,7 +696,7 @@ class EnriquecerHtmlLiteralDoPdf
             $trecho = $proxTag === false ? substr($interno, $i) : substr($interno, $i, $proxTag - $i);
             $i = $proxTag === false ? $len : $proxTag;
 
-            $frases = preg_split('/(?<=[.!?])\s+/u', $trecho) ?: [$trecho];
+            $frases = $this->dividirFrasesPreservandoChamadasTabelaFigura($trecho);
 
             foreach ($frases as $idx => $frase) {
                 if ($frase === '') {
@@ -702,7 +707,12 @@ class EnriquecerHtmlLiteralDoPdf
                 $candidatoTexto = trim($textoAtual.' '.$frase);
                 $candidatoHtml = $atual.$separador.$frase;
 
-                if (mb_strlen($candidatoTexto) > $limite && $textoAtual !== '') {
+                // Não abre parágrafo novo logo após chamada "(Table)." / "(Figure).".
+                if (
+                    mb_strlen($candidatoTexto) > $limite
+                    && $textoAtual !== ''
+                    && ! $this->terminaComChamadaTabelaFigura($textoAtual)
+                ) {
                     $partes[] = $atual;
                     $atual = $frase;
                     $textoAtual = trim(strip_tags($frase));
@@ -741,7 +751,7 @@ class EnriquecerHtmlLiteralDoPdf
             return [$texto];
         }
 
-        $frases = preg_split('/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕ“"])/u', $texto) ?: [$texto];
+        $frases = $this->dividirFrasesPreservandoChamadasTabelaFigura($texto);
         $partes = [];
         $atual = '';
 
@@ -754,7 +764,11 @@ class EnriquecerHtmlLiteralDoPdf
 
             $candidato = $atual === '' ? $frase : $atual.' '.$frase;
 
-            if (mb_strlen($candidato) > 450 && $atual !== '') {
+            if (
+                mb_strlen($candidato) > 450
+                && $atual !== ''
+                && ! $this->terminaComChamadaTabelaFigura($atual)
+            ) {
                 $partes[] = $atual;
                 $atual = $frase;
 
@@ -1073,15 +1087,185 @@ class EnriquecerHtmlLiteralDoPdf
             return true;
         }
 
+        if (preg_match('/^numbers represent the type localities listed in the table\.?$/iu', $texto) === 1) {
+            return true;
+        }
+
         return false;
+    }
+
+    /**
+     * Chamadas "(Table)." / "(Figure)." no PDF não abrem parágrafo novo.
+     */
+    private function fundirQuebrasAposChamadaTabelaFigura(string $html): string
+    {
+        return (string) preg_replace(
+            '/(\((?:Table|Tabela|Figure|Figura|Fig\.?)(?:\s*,\s*(?:Table|Tabela|Figure|Figura|Fig\.?))*\)\.?)(\s*<\/p>)\s*<p\b[^>]*>/iu',
+            '$1 ',
+            $html,
+        );
+    }
+
+    private function terminaComChamadaTabelaFigura(string $texto): bool
+    {
+        return preg_match(
+            '/\((?:Table|Tabela|Figure|Figura|Fig\.?)(?:\s*,\s*(?:Table|Tabela|Figure|Figura|Fig\.?))*\)\.?\s*$/iu',
+            trim($texto),
+        ) === 1;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function dividirFrasesPreservandoChamadasTabelaFigura(string $texto): array
+    {
+        $frases = preg_split('/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕ“"])/u', $texto) ?: [$texto];
+        $reunidas = [];
+
+        foreach ($frases as $frase) {
+            $frase = trim($frase);
+
+            if ($frase === '') {
+                continue;
+            }
+
+            if ($reunidas !== [] && $this->terminaComChamadaTabelaFigura($reunidas[array_key_last($reunidas)])) {
+                $reunidas[array_key_last($reunidas)] .= ' '.$frase;
+
+                continue;
+            }
+
+            $reunidas[] = $frase;
+        }
+
+        return $reunidas !== [] ? $reunidas : [$texto];
+    }
+
+    /**
+     * Páginas landscape cortam frases no meio ("…or are" + TABLE + "almost inexistent…").
+     * Reune a continuação antes da tabela e reposiciona a table no ancoramento editorial.
+     */
+    private function repararContinuacaoCortadaPorTabela(string $html): string
+    {
+        if (preg_match(
+            '/(?:<div\b[^>]*class="[^"]*tabela-pdf-scroll[^"]*"[^>]*>\s*)?<table\b.*?<\/table>(?:\s*<\/div>)?/is',
+            $html,
+            $tm,
+            PREG_OFFSET_CAPTURE,
+        ) !== 1) {
+            return $html;
+        }
+
+        $tabela = $tm[0][0];
+        $tabelaPos = $tm[0][1];
+        $tabelaEnd = $tabelaPos + strlen($tabela);
+        $antes = substr($html, 0, $tabelaPos);
+        $depois = substr($html, $tabelaEnd);
+
+        if (preg_match_all('/<p\b([^>]*)>(.*?)<\/p>/is', $antes, $ps, PREG_SET_ORDER | PREG_OFFSET_CAPTURE) === 0) {
+            return $this->reposicionarTabelaHtml($antes.$depois, $tabela);
+        }
+
+        $ultimo = $ps[array_key_last($ps)];
+        $attrs = $ultimo[1][0];
+        $interno = $ultimo[2][0];
+        $blocoCompleto = $ultimo[0][0];
+        $offsetBloco = $ultimo[0][1];
+        $textoAntes = trim(html_entity_decode(strip_tags($interno), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        $textoAntes = trim(preg_replace('/\s+/u', ' ', $textoAntes) ?? $textoAntes);
+
+        $terminaFrase = preg_match('/[.!?]"?$/u', $textoAntes) === 1;
+        $palavraPendente = preg_match(
+            '/\b(or|and|the|a|an|to|of|in|for|with|are|is|was|were|by|as|not|be|been)$/iu',
+            $textoAntes,
+        ) === 1;
+
+        if ($terminaFrase && ! $palavraPendente) {
+            return $this->reposicionarTabelaHtml($antes.$depois, $tabela);
+        }
+
+        $continuacaoHtml = null;
+        $depoisNovo = $depois;
+
+        if (preg_match('/^\s*<p\b[^>]*>(\s*\p{Ll}.*?)<\/p>/isu', $depois, $cm) === 1) {
+            $continuacaoHtml = trim($cm[1]);
+            $depoisNovo = (string) preg_replace('/^\s*<p\b[^>]*>\s*\p{Ll}.*?<\/p>/isu', '', $depois, 1);
+        } elseif (preg_match(
+            '/<p\b[^>]*>(.*?Numbers represent the type localities listed in the table\.)\s+(\p{Ll}.*?)<\/p>/isu',
+            $depois,
+            $cm,
+        ) === 1) {
+            $continuacaoHtml = trim($cm[2]);
+            $depoisNovo = (string) preg_replace(
+                '/<p\b[^>]*>.*?Numbers represent the type localities listed in the table\.\s+\p{Ll}.*?<\/p>/isu',
+                '',
+                $depois,
+                1,
+            );
+        } elseif (preg_match(
+            '/Numbers represent the type localities listed in the table\.\s+(\p{Ll}[^<]*)/iu',
+            $depois,
+            $cm,
+            PREG_OFFSET_CAPTURE,
+        ) === 1) {
+            $continuacaoHtml = trim($cm[1][0]);
+            $depoisNovo = substr($depois, 0, $cm[0][1]).substr($depois, $cm[0][1] + strlen($cm[0][0]));
+            $depoisNovo = (string) preg_replace('/<p\b[^>]*>\s*<\/p>/iu', '', $depoisNovo);
+        }
+
+        if ($continuacaoHtml === null || $continuacaoHtml === '') {
+            return $this->reposicionarTabelaHtml($antes.$depois, $tabela);
+        }
+
+        $sep = preg_match('/\s$/u', $interno) === 1 || preg_match('/^\s/u', $continuacaoHtml) === 1 ? '' : ' ';
+        $paragrafo = '<p'.$attrs.'>'.rtrim($interno).$sep.ltrim($continuacaoHtml).'</p>';
+        $antesSemUltimo = substr($antes, 0, $offsetBloco).substr($antes, $offsetBloco + strlen($blocoCompleto));
+        $htmlSemTabela = $antesSemUltimo.$paragrafo.$depoisNovo;
+
+        return $this->reposicionarTabelaHtml($htmlSemTabela, $tabela);
+    }
+
+    private function reposicionarTabelaHtml(string $html, string $tabelaHtml): string
+    {
+        $html = $this->removerTabelasHtml($html);
+
+        return $this->anexarTabelaHtml($html, $tabelaHtml);
     }
 
     private function anexarTabelaHtml(string $html, string $tabelaHtml): string
     {
-        if (preg_match('/(?:<\/p>|<\/h2>)\s*(?=(?:<[^>]+>\s*)*(?:Table|Tabela)\b)/is', $html, $m, PREG_OFFSET_CAPTURE) === 1) {
-            $offset = $m[0][1] + strlen($m[0][0]);
+        // Ancoragem preferencial do portal: após o parágrafo que cita "(Table, Figure)".
+        if (preg_match_all('/<p\b[^>]*>.*?<\/p>/is', $html, $matches, PREG_OFFSET_CAPTURE) > 0) {
+            foreach ($matches[0] as [$paragrafo, $offset]) {
+                $texto = html_entity_decode(strip_tags($paragrafo), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
-            return substr($html, 0, $offset).$tabelaHtml.substr($html, $offset);
+                if (preg_match('/\(\s*Table\s*,\s*Figure\s*\)|\(\s*Figure\s*,\s*Table\s*\)/iu', $texto) !== 1) {
+                    continue;
+                }
+
+                if ($this->paragrafoTerminaTruncado($texto)) {
+                    continue;
+                }
+
+                $fim = $offset + strlen($paragrafo);
+
+                return substr($html, 0, $fim).$tabelaHtml.substr($html, $fim);
+            }
+        }
+
+        // Fallback: após parágrafo completo que termina em chamada "(Table)." / "(Figure).".
+        if (preg_match_all('/<p\b[^>]*>.*?<\/p>/is', $html, $matches, PREG_OFFSET_CAPTURE) > 0) {
+            foreach (array_reverse($matches[0]) as [$paragrafo, $offset]) {
+                $texto = html_entity_decode(strip_tags($paragrafo), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+                if (! $this->terminaComChamadaTabelaFigura($texto) || $this->paragrafoTerminaTruncado($texto)) {
+                    continue;
+                }
+
+                $fim = $offset + strlen($paragrafo);
+
+                return substr($html, 0, $fim).$tabelaHtml.substr($html, $fim);
+            }
         }
 
         if (preg_match('/<(?:h2|p)\b[^>]*>\s*(?:<strong>)?\s*REFERENCES?\b/i', $html, $m, PREG_OFFSET_CAPTURE) === 1) {
@@ -1090,12 +1274,26 @@ class EnriquecerHtmlLiteralDoPdf
             return substr($html, 0, $offset).$tabelaHtml.substr($html, $offset);
         }
 
-        // Antes do ACKNOWLEDGEMENTS / AUTHORS se existirem
         if (preg_match('/<h2\b[^>]*>\s*<strong>\s*ACKNOWLEDGEMENTS?\s*<\/strong>\s*<\/h2>/i', $html, $m, PREG_OFFSET_CAPTURE) === 1) {
             return substr($html, 0, $m[0][1]).$tabelaHtml.substr($html, $m[0][1]);
         }
 
         return $html.$tabelaHtml;
+    }
+
+    private function paragrafoTerminaTruncado(string $texto): bool
+    {
+        $texto = trim(preg_replace('/\s+/u', ' ', $texto) ?? $texto);
+
+        if ($texto === '') {
+            return true;
+        }
+
+        if (preg_match('/\b(or|and|the|a|an|to|of|in|for|with|are|is|was|were|by|as|not|be|been)$/iu', $texto) === 1) {
+            return true;
+        }
+
+        return preg_match('/[.!?]"?$/u', $texto) !== 1;
     }
 
     /**

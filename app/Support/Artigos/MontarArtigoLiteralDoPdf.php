@@ -761,6 +761,7 @@ class MontarArtigoLiteralDoPdf
         }
 
         $frases = preg_split('/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕ“"])/u', $texto) ?: [$texto];
+        $frases = $this->reunirFrasesAposChamadaTabelaFigura($frases);
         $partes = [];
         $atual = '';
 
@@ -773,7 +774,11 @@ class MontarArtigoLiteralDoPdf
 
             $candidato = $atual === '' ? $frase : $atual.' '.$frase;
 
-            if (mb_strlen($candidato) > 620 && $atual !== '') {
+            if (
+                mb_strlen($candidato) > 620
+                && $atual !== ''
+                && ! $this->terminaComChamadaTabelaFigura($atual)
+            ) {
                 $partes[] = $atual;
                 $atual = $frase;
 
@@ -788,6 +793,41 @@ class MontarArtigoLiteralDoPdf
         }
 
         return $partes !== [] ? $partes : [$texto];
+    }
+
+    /**
+     * @param  list<string>  $frases
+     * @return list<string>
+     */
+    private function reunirFrasesAposChamadaTabelaFigura(array $frases): array
+    {
+        $reunidas = [];
+
+        foreach ($frases as $frase) {
+            $frase = trim($frase);
+
+            if ($frase === '') {
+                continue;
+            }
+
+            if ($reunidas !== [] && $this->terminaComChamadaTabelaFigura($reunidas[array_key_last($reunidas)])) {
+                $reunidas[array_key_last($reunidas)] .= ' '.$frase;
+
+                continue;
+            }
+
+            $reunidas[] = $frase;
+        }
+
+        return $reunidas;
+    }
+
+    private function terminaComChamadaTabelaFigura(string $texto): bool
+    {
+        return preg_match(
+            '/\((?:Table|Tabela|Figure|Figura|Fig\.?)(?:\s*,\s*(?:Table|Tabela|Figure|Figura|Fig\.?))*\)\.?\s*$/iu',
+            trim($texto),
+        ) === 1;
     }
 
     /**
