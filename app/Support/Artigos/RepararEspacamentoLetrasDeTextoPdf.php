@@ -55,7 +55,18 @@ class RepararEspacamentoLetrasDeTextoPdf
         return (string) preg_replace_callback(
             '/>([^<]+)</u',
             function (array $m): string {
-                return '>'.$this->repararLinha($m[1]).'<';
+                $original = $m[1];
+
+                // Nós só com espaço (ex.: "</em> <em>") precisam sobreviver ao trim de repararLinha.
+                if (trim($original) === '') {
+                    return '>'.$original.'<';
+                }
+
+                if (preg_match('/^(\s*)(.*?)(\s*)$/us', $original, $partes) !== 1) {
+                    return '>'.$this->repararLinha($original).'<';
+                }
+
+                return '>'.$partes[1].$this->repararLinha($partes[2]).$partes[3].'<';
             },
             $html,
         );

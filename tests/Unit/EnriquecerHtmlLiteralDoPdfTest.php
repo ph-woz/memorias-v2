@@ -284,6 +284,67 @@ class EnriquecerHtmlLiteralDoPdfTest extends TestCase
         $this->assertStringNotContainsString('(Table).</p><p>Out of those', $resultado);
     }
 
+    public function test_funde_falso_paragrafo_antes_de_autor_taxonomico(): void
+    {
+        $html = '<p>targeting Triatoma infestans (Klug, 1834), Rhodnius prolixus Stål, 1859, and T. dimidiata</p>'
+            .'<p>(Latreille, 1811) (northern South America and Central America).</p>'
+            .'<p>The most remarkable achievement resulting from these initiatives was the elimination.</p>';
+
+        $resultado = (new EnriquecerHtmlLiteralDoPdf)->polir($html);
+
+        $this->assertStringContainsString('T. dimidiata</em> (Latreille, 1811)', $resultado);
+        $this->assertDoesNotMatchRegularExpression(
+            '/dimidiata<\/em>\s*<\/p>\s*<p[^>]*>\s*\(Latreille/i',
+            $resultado,
+        );
+        $this->assertStringContainsString('Central America).</p><p>The most remarkable', $resultado);
+    }
+
+    public function test_insere_espacos_ao_redor_de_em_e_sup_colados(): void
+    {
+        $html = '<p>agent Trypanosoma cruzi:<em>Triatoma infestans</em>(Klug, 1834) (southern South America),'
+            .'<em>Rhodnius prolixus</em>Stål, 1859, and<em>T. dimidiata</em> (Latreille, 1811).</p>'
+            .'<p>elimination of the<em>T. infestans</em>domiciliated populations in Brazil.<sup>8</sup>'
+            .'More recently, the elimination of<em>R. prolixus</em>from Central America.<sup>9,10</sup>has'
+            .' also been considered.</p>';
+
+        $resultado = (new EnriquecerHtmlLiteralDoPdf)->polir($html);
+
+        $this->assertStringContainsString('cruzi: <em>', $resultado);
+        $this->assertStringContainsString('</em> (Klug, 1834)', $resultado);
+        $this->assertStringContainsString('</em> Stål, 1859', $resultado);
+        $this->assertStringContainsString('and <em>T. dimidiata</em>', $resultado);
+        $this->assertStringContainsString('the <em>T. infestans</em> domiciliated', $resultado);
+        $this->assertStringContainsString('of <em>R. prolixus</em> from', $resultado);
+        $this->assertStringContainsString('</sup> More recently', $resultado);
+        $this->assertStringContainsString('</sup> has also', $resultado);
+        $this->assertStringNotContainsString('infestans</em>(Klug', $resultado);
+        $this->assertStringNotContainsString('prolixus</em>Stål', $resultado);
+        $this->assertStringNotContainsString('infestans</em>domiciliated', $resultado);
+        $this->assertStringNotContainsString('prolixus</em>from', $resultado);
+    }
+
+    public function test_nao_parte_paragrafo_apos_abreviacao_de_genero(): void
+    {
+        $fraseBase = 'Four multigovernmental initiatives were launched targeting the three most important '
+            .'triatomine species that transmit the etiological agent Trypanosoma cruzi: ';
+        $html = '<p>'.str_repeat($fraseBase, 3)
+            .'Triatoma infestans (Klug, 1834) (southern South America), Rhodnius prolixus Stål, 1859, '
+            .'and T. dimidiata (Latreille, 1811) (northern South America and Central America).</p>';
+
+        $resultado = (new EnriquecerHtmlLiteralDoPdf)->polir($html);
+
+        $this->assertDoesNotMatchRegularExpression(
+            '/\bT\.\s*<\/p>\s*<p/i',
+            $resultado,
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/dimidiata<\/em>\s*<\/p>\s*<p[^>]*>\s*\(Latreille/i',
+            $resultado,
+        );
+        $this->assertStringContainsString('T. dimidiata</em> (Latreille, 1811)', $resultado);
+    }
+
     public function test_reune_frase_cortada_e_reposiciona_tabela_apos_table_figure(): void
     {
         $tabela = '<div class="tabela-pdf-scroll"><table><caption>TABLE I</caption>'

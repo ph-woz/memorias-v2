@@ -47,16 +47,19 @@ class EnriquecerHtmlLiteralDoPdf
         $html = $this->aplicarTrechosNegritoDoPdf($html, $trechosNegritoPdf);
         $html = $this->repartirParagrafosLongos($html);
         $html = $this->fundirQuebrasAposChamadaTabelaFigura($html);
+        $html = $this->fundirParagrafosContinuacao($html);
         $html = $this->aplicarTipografiaPreservandoTags($html);
         $html = $this->promoverTitulosSecaoInline($html);
         $html = $this->removerTitulosSecaoDuplicados($html);
         $html = $this->removerPrintsDePagina($html);
         $html = $this->inserirImagens($html, $imagens);
         $html = $this->removerProsaDuplicadaDeTabela($html);
-        $html = $this->garantirEspacosAoRedorDeMarcacao($html);
+        $html = $this->fundirParagrafosContinuacao($html);
         $html = $this->removerParagrafosVazios($html);
         // Artefato clássico de PDF landscape: "Jacu nd á" / "Tole d o" → palavras íntegras.
         $html = (new RepararEspacamentoLetrasDeTextoPdf)->repararHtml($html);
+        // Depois do reparo: trim interno não pode deixar "</em>(Klug" / "and<em>" colados.
+        $html = $this->garantirEspacosAoRedorDeMarcacao($html);
 
         return trim($html);
     }
@@ -378,12 +381,15 @@ class EnriquecerHtmlLiteralDoPdf
      */
     private function garantirEspacosAoRedorDeMarcacao(string $html): string
     {
+        // "cruzi:<em>", "America),<em>", "and<em>", "dwellings<sup>"
+        // "]" fecha a classe: ")" precisa vir logo após "[" para ser literal.
         $html = preg_replace(
-            '/(\p{L}|\p{N}|[.!?,;:])(<(?:strong|b|em|i|sup|a)\b[^>]*>)/u',
+            '/(\p{L}|\p{N}|[).!?,;:])(<(?:strong|b|em|i|sup|a)\b[^>]*>)/u',
             '$1 $2',
             $html,
         ) ?? $html;
 
+        // "</em>(Klug", "</em>Stål", "</em>domiciliated", "</sup>has"
         $html = preg_replace(
             '/(<\/(?:strong|b|em|i|sup|a)>)(\p{L}|\p{N}|\()/u',
             '$1 $2',
@@ -707,11 +713,13 @@ class EnriquecerHtmlLiteralDoPdf
                 $candidatoTexto = trim($textoAtual.' '.$frase);
                 $candidatoHtml = $atual.$separador.$frase;
 
-                // Não abre parágrafo novo logo após chamada "(Table)." / "(Figure).".
+                // Não abre parágrafo novo após "(Table).", abreviação "T."/"R." nem antes de "(Latreille…".
                 if (
                     mb_strlen($candidatoTexto) > $limite
                     && $textoAtual !== ''
                     && ! $this->terminaComChamadaTabelaFigura($textoAtual)
+                    && ! $this->terminaComAbreviacaoGenero($textoAtual)
+                    && ! preg_match('/^\(/u', ltrim($frase))
                 ) {
                     $partes[] = $atual;
                     $atual = $frase;
@@ -768,6 +776,8 @@ class EnriquecerHtmlLiteralDoPdf
                 mb_strlen($candidato) > 450
                 && $atual !== ''
                 && ! $this->terminaComChamadaTabelaFigura($atual)
+                && ! $this->terminaComAbreviacaoGenero($atual)
+                && ! preg_match('/^\(/u', $frase)
             ) {
                 $partes[] = $atual;
                 $atual = $frase;
@@ -1106,12 +1116,29 @@ class EnriquecerHtmlLiteralDoPdf
         );
     }
 
+    /**
+     * Falso parágrafo do PDF/Gemini: quebra antes de autor "(Latreille…)" ou continuação minúscula.
+     */
+    private function fundirParagrafosContinuacao(string $html): string
+    {
+        return (string) preg_replace(
+            '/<\/p>\s*<p\b[^>]*>\s*(?=[\(\p{Ll}])/u',
+            ' ',
+            $html,
+        );
+    }
+
     private function terminaComChamadaTabelaFigura(string $texto): bool
     {
         return preg_match(
             '/\((?:Table|Tabela|Figure|Figura|Fig\.?)(?:\s*,\s*(?:Table|Tabela|Figure|Figura|Fig\.?))*\)\.?\s*$/iu',
             trim($texto),
         ) === 1;
+    }
+
+    private function terminaComAbreviacaoGenero(string $texto): bool
+    {
+        return preg_match('/\b[A-Z]\.\s*$/u', trim($texto)) === 1;
     }
 
     /**
@@ -1129,10 +1156,18 @@ class EnriquecerHtmlLiteralDoPdf
                 continue;
             }
 
-            if ($reunidas !== [] && $this->terminaComChamadaTabelaFigura($reunidas[array_key_last($reunidas)])) {
-                $reunidas[array_key_last($reunidas)] .= ' '.$frase;
+            if ($reunidas !== []) {
+                $anterior = $reunidas[array_key_last($reunidas)];
 
-                continue;
+                if (
+                    $this->terminaComChamadaTabelaFigura($anterior)
+                    || $this->terminaComAbreviacaoGenero($anterior)
+                    || preg_match('/^\(/u', $frase) === 1
+                ) {
+                    $reunidas[array_key_last($reunidas)] .= ' '.$frase;
+
+                    continue;
+                }
             }
 
             $reunidas[] = $frase;
